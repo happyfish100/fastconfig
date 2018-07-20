@@ -139,8 +139,7 @@ static int setup_server_env(const char *config_filename)
     umask(0);
 
     result = sf_setup_signal_handler();
-    returnif(result);
 
     log_set_cache(true);
-    return 0;
+    return result;
 }

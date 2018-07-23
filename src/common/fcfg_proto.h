@@ -8,9 +8,14 @@
 #include "fastcommon/ini_file_reader.h"
 #include "fcfg_types.h"
 
-#define FCFG_PROTO_ACK                  6
+#define FCFG_PROTO_ACTIVE_TEST_REQ    35   //center -> agent
+#define FCFG_PROTO_ACTIVE_TEST_RESP   36
 
-#define FCFG_PROTO_ACTIVE_TEST_REQ     36
+#define FCFG_PROTO_JION_REQ           37   //agent -> center
+#define FCFG_PROTO_JION_RESP          38
+
+#define FCFG_PROTO_PUSH_CONFIG        39   //center -> agent
+#define FCFG_PROTO_PUSH_RESP          40
 
 typedef struct fcfg_proto_header {
     char body_len[4];       //body length
@@ -18,6 +23,31 @@ typedef struct fcfg_proto_header {
     unsigned char status;   //status to store errno
     char padding[2];
 } FCFGProtoHeader;
+
+typedef struct fcfg_proto_join_req {
+    char env[64];
+    char agent_cfg_version[8];
+} FCFGProtoJoinReq;
+
+typedef struct fcfg_proto_join_resp {
+    char center_cfg_version[8];
+} FCFGProtoJoinResp;
+
+typedef struct fcfg_proto_push_config_header {
+    char count[2];  //config count in body
+} FCFGProtoPushConfigHeader;
+
+typedef struct fcfg_proto_push_config_body_part {
+    unsigned char name_len;
+    char value_len[4];
+    char version[8];
+    char name[0];
+    char *value;   //value = name + name_len
+} FCFGProtoPushConfigBodyPart;
+
+typedef struct fcfg_proto_push_resp {
+    char agent_cfg_version[8];
+} FCFGProtoPushResp;
 
 #ifdef __cplusplus
 extern "C" {

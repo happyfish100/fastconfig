@@ -53,7 +53,7 @@ int fcfg_server_deal_task(struct fast_task_info *task)
     int time_used;
 
     tbegin = get_current_time_ms();
-    response.cmd = FCFG_PROTO_ACK;
+    response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
     response.body_len = 0;
     response.error.length = 0;
     response.error.message[0] = '\0';

@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS fast_config (
        value TEXT NOT NULL,
        version BIGINT(20) NOT NULL,
        create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-       update_time TIMESTAMP NOT NULL,
+       update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
        PRIMARY KEY (env, name),
        UNIQUE (version)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

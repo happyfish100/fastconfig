@@ -25,9 +25,12 @@
 #include "common/fcfg_proto.h"
 #include "fcfg_server_func.h"
 #include "fcfg_server_handler.h"
+#include "fcfg_server_dao.h"
 
 static bool daemon_mode = true;
 static int setup_server_env(const char *config_filename);
+
+static int test();
 
 int main(int argc, char *argv[])
 {
@@ -92,6 +95,9 @@ int main(int argc, char *argv[])
     gofailif(r,"service init error");
     sf_set_remove_from_ready_list(false);
 
+
+    test();
+
     sf_accept_loop();
     if (g_schedule_flag) {
         pthread_kill(schedule_tid, SIGINT);
@@ -141,5 +147,25 @@ static int setup_server_env(const char *config_filename)
     result = sf_setup_signal_handler();
 
     log_set_cache(true);
+    return result;
+}
+
+static int test()
+{
+    MySQLContext context;
+    int result;
+    const char *env = "test";
+    const char *name = "system.log_level";
+    const char *value = "INFO";
+
+    if ((result=fcfg_server_dao_init(&context)) != 0) {
+        return result;
+    }
+
+    result = fcfg_server_dao_replace(&context, env, name, value);
+    result = fcfg_server_dao_replace(&context, env, name, value);
+    result = fcfg_server_dao_replace(&context, env, name, value);
+
+    fcfg_server_dao_destroy(&context);
     return result;
 }

@@ -8,28 +8,44 @@
 #include "fcfg_server_global.h"
 #include "fcfg_server_dao.h"
 
-int fcfg_server_dao_init(MySQLContext *context)
+#define FCFG_MYSQL_STMT_INIT(stmt, mysql) \
+    do {  \
+        stmt = mysql_stmt_init(mysql); \
+        if (stmt == NULL) {   \
+            logError("file: "__FILE__", line: %d, "  \
+                    "call mysql_stmt_init fail", __LINE__); \
+            return ENOMEM; \
+        } \
+    } while (0)
+
+#define FCFG_MYSQL_STMT_PREPARE(stmt, sql) \
+    do {  \
+        if (mysql_stmt_prepare(stmt, sql, strlen(sql)) != 0) { \
+            logError("file: "__FILE__", line: %d, "  \
+                    "prepare stmt fail, error info: %s, sql: %s", \
+                    __LINE__, mysql_stmt_error(stmt), sql);  \
+            return EINVAL;  \
+        } \
+    } while (0)
+
+int fcfg_server_dao_init(FCFGMySQLContext *context)
 {
     bool on;
     int timeout;
     const char *insert_sql = "INSERT INTO fast_config "
-        "(env, name, value, version) values (?, ?, ?, ?)";
-    const char *update_sql = "update fast_config "
-        "set value = ?, version = ? where env = ? and name = ?";
+        "(env, name, value, version, status) VALUES (?, ?, ?, ?, 0)";
+    const char *update_sql = "UPDATE fast_config "
+        "SET value = ?, version = ?, status = 0 WHERE env = ? AND name = ?";
+    const char *delete_sql = "UPDATE fast_config "
+        "SET version = ?, status = 1 WHERE env = ? AND name = ?";
+    const char *select_sql = "SELECT name, value, version, status FROM fast_config "
+        "WHERE env = ? AND version > ? ORDER BY version limit ?";
 
     mysql_init(&context->mysql);
-    context->update_stmt = mysql_stmt_init(&context->mysql);
-    if (context->update_stmt == NULL) {
-        logError("file: "__FILE__", line: %d, "
-                "call mysql_stmt_init fail", __LINE__);
-        return ENOMEM;
-    }
-    context->insert_stmt = mysql_stmt_init(&context->mysql);
-    if (context->insert_stmt == NULL) {
-        logError("file: "__FILE__", line: %d, "
-                "call mysql_stmt_init fail", __LINE__);
-        return ENOMEM;
-    }
+    FCFG_MYSQL_STMT_INIT(context->update_stmt, &context->mysql);
+    FCFG_MYSQL_STMT_INIT(context->insert_stmt, &context->mysql);
+    FCFG_MYSQL_STMT_INIT(context->delete_stmt, &context->mysql);
+    FCFG_MYSQL_STMT_INIT(context->select_stmt, &context->mysql);
 
     on = true;
     mysql_options(&context->mysql, MYSQL_OPT_RECONNECT, &on);
@@ -57,34 +73,21 @@ int fcfg_server_dao_init(MySQLContext *context)
         return ENOTCONN;
     }
 
-    if (mysql_stmt_prepare(context->update_stmt, update_sql,
-                strlen(update_sql)) != 0)
-    {
-        logError("file: "__FILE__", line: %d, "
-                "prepare stmt fail, error info: %s, sql: %s",
-                __LINE__, mysql_stmt_error(context->update_stmt), update_sql);
-        return EINVAL;
-    }
-
-    if (mysql_stmt_prepare(context->insert_stmt, insert_sql,
-                strlen(insert_sql)) != 0)
-    {
-        logError("file: "__FILE__", line: %d, "
-                "prepare stmt fail, error info: %s, sql: %s",
-                __LINE__, mysql_stmt_error(context->insert_stmt), insert_sql);
-        return EINVAL;
-    }
+    FCFG_MYSQL_STMT_PREPARE(context->update_stmt, update_sql);
+    FCFG_MYSQL_STMT_PREPARE(context->insert_stmt, insert_sql);
+    FCFG_MYSQL_STMT_PREPARE(context->delete_stmt, delete_sql);
+    FCFG_MYSQL_STMT_PREPARE(context->select_stmt, select_sql);
 
     return 0;
 }
 
-void fcfg_server_dao_destroy(MySQLContext *context)
+void fcfg_server_dao_destroy(FCFGMySQLContext *context)
 {
     mysql_stmt_close(context->update_stmt);
     mysql_close(&context->mysql);
 }
 
-static int64_t fcfg_server_dao_next_version(MySQLContext *context)
+static int64_t fcfg_server_dao_next_version(FCFGMySQLContext *context)
 {
     MYSQL_RES *mysql_result;
     MYSQL_ROW row;
@@ -135,7 +138,7 @@ static int64_t fcfg_server_dao_next_version(MySQLContext *context)
     return version;
 }
 
-int fcfg_server_dao_replace(MySQLContext *context, const char *env,
+int fcfg_server_dao_replace(FCFGMySQLContext *context, const char *env,
         const char *name, const char *value)
 {
     MYSQL_BIND update_binds[4];
@@ -217,5 +220,210 @@ int fcfg_server_dao_replace(MySQLContext *context, const char *env,
                 __LINE__, mysql_stmt_error(context->insert_stmt));
         return EINVAL;
     }
+
     return 0;
+}
+
+int fcfg_server_dao_delete(FCFGMySQLContext *context, const char *env,
+        const char *name)
+{
+    MYSQL_BIND delete_binds[3];
+    int64_t version;
+    unsigned long env_len;
+    unsigned long name_len;
+
+    version = fcfg_server_dao_next_version(context);
+    if (version < 0) {
+        return EINVAL;
+    }
+
+    env_len = strlen(env);
+    name_len = strlen(name);
+    memset(delete_binds, 0, sizeof(delete_binds));
+
+    delete_binds[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    delete_binds[0].buffer = (char *)&version;
+
+    delete_binds[1].buffer_type = MYSQL_TYPE_STRING;
+    delete_binds[1].buffer = (char *)env;
+    delete_binds[1].length = &env_len;
+
+    delete_binds[2].buffer_type = MYSQL_TYPE_STRING;
+    delete_binds[2].buffer = (char *)name;
+    delete_binds[2].length = &name_len;
+
+    if (mysql_stmt_bind_param(context->delete_stmt, delete_binds) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_bind_param fail, error info: %s",
+                __LINE__, mysql_stmt_error(context->delete_stmt));
+        return EINVAL;
+    }
+
+    if (mysql_stmt_execute(context->delete_stmt) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_execute fail, error info: %s",
+                __LINE__, mysql_stmt_error(context->delete_stmt));
+        return EINVAL;
+    }
+    if (mysql_stmt_affected_rows(context->delete_stmt) == 0) {
+        return ENOENT;
+    }
+    return 0;
+}
+
+int fcfg_server_dao_query_by_env_and_version(FCFGMySQLContext *context,
+        const char *env, const int64_t version, const int limit,
+        FCFGConfigRows *rows)
+{
+    MYSQL_BIND select_binds[3];
+    MYSQL_BIND result_binds[4];
+    unsigned long env_len;
+    int row_count;
+    int bytes;
+    struct {
+        char name[FCFG_CONFIG_NAME_SIZE];
+        char value[FCFG_CONFIG_VALUE_SIZE];
+        int64_t version;
+        short status;
+        unsigned long name_len;
+        unsigned long value_len;
+    } buffer;
+    bool is_null[4];
+    bool error[4];
+    FCFGConfigRecord *current;
+    FCFGConfigRecord *end;
+
+    env_len = strlen(env);
+    memset(select_binds, 0, sizeof(select_binds));
+
+    select_binds[0].buffer_type = MYSQL_TYPE_STRING;
+    select_binds[0].buffer = (char *)env;
+    select_binds[0].length = &env_len;
+
+    select_binds[1].buffer_type = MYSQL_TYPE_LONGLONG;
+    select_binds[1].buffer = (char *)&version;
+
+    select_binds[2].buffer_type = MYSQL_TYPE_LONG;
+    select_binds[2].buffer = (char *)&limit;
+
+    if (mysql_stmt_bind_param(context->select_stmt, select_binds) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_bind_param fail, error info: %s",
+                __LINE__, mysql_stmt_error(context->select_stmt));
+        return EINVAL;
+    }
+
+    result_binds[0].buffer_type = MYSQL_TYPE_STRING;
+    result_binds[0].buffer = buffer.name;
+    result_binds[0].buffer_length = FCFG_CONFIG_NAME_SIZE;
+    result_binds[0].is_null = &is_null[0];
+    result_binds[0].length = &buffer.name_len;
+    result_binds[0].error = &error[0];
+
+    result_binds[1].buffer_type = MYSQL_TYPE_STRING;
+    result_binds[1].buffer = buffer.value;
+    result_binds[1].buffer_length = FCFG_CONFIG_VALUE_SIZE;
+    result_binds[1].is_null = &is_null[1];
+    result_binds[1].length = &buffer.value_len;
+    result_binds[1].error = &error[1];
+
+    result_binds[2].buffer_type = MYSQL_TYPE_LONGLONG;
+    result_binds[2].buffer = (char *)&buffer.version;
+    result_binds[2].is_null = &is_null[2];
+    result_binds[2].error = &error[2];
+
+    result_binds[3].buffer_type = MYSQL_TYPE_SHORT;
+    result_binds[3].buffer = (char *)&buffer.status;
+    result_binds[3].is_null = &is_null[3];
+    result_binds[3].error = &error[3];
+
+    if (mysql_stmt_bind_result(context->select_stmt, result_binds) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_bind_result fail, error info: %s",
+                __LINE__, mysql_stmt_error(context->select_stmt));
+        return EINVAL;
+    }
+
+    if (mysql_stmt_execute(context->select_stmt) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_execute fail, error info: %s",
+                __LINE__, mysql_stmt_error(context->select_stmt));
+        return EINVAL;
+    }
+
+    if (mysql_stmt_store_result(context->select_stmt) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_store_result fail, error info: %s",
+                __LINE__, mysql_stmt_error(context->select_stmt));
+        return EINVAL;
+    }
+
+    row_count = mysql_stmt_num_rows(context->select_stmt);
+    if (row_count == 0) {
+        rows->count = 0;
+        rows->records = NULL;
+        return 0;
+    }
+
+    bytes = sizeof(FCFGConfigRecord) * row_count;
+    rows->records = (FCFGConfigRecord *)malloc(bytes);
+    if (rows->records == NULL) {
+        logError("file: "__FILE__", line: %d, "
+                "malloc %d bytes fail", __LINE__, bytes);
+        return ENOMEM;
+    }
+
+    end = rows->records + row_count;
+    for (current=rows->records; current<end; current++) {
+        if (mysql_stmt_fetch(context->select_stmt) != 0) {
+            logError("file: "__FILE__", line: %d, "
+                    "call mysql_stmt_fetch fail, error info: %s",
+                    __LINE__, mysql_stmt_error(context->select_stmt));
+            rows->count = current - rows->records;
+            fcfg_server_dao_free_rows(rows);
+            return EFAULT;
+        }
+
+        bytes = buffer.name_len + buffer.value_len + 1;
+        current->name = (char *)malloc(bytes);
+        if (current->name == NULL) {
+            logError("file: "__FILE__", line: %d, "
+                    "malloc %d bytes fail", __LINE__, bytes);
+            return ENOMEM;
+        }
+        current->value = current->name + buffer.name_len;
+        memcpy(current->name, buffer.name, buffer.name_len);
+        memcpy(current->value, buffer.value, buffer.value_len);
+        current->version = buffer.version;
+        current->status = buffer.status;
+        current->name_len = buffer.name_len;
+        current->value_len = buffer.value_len;
+
+        logInfo("name: %.*s, value: %.*s, version: %"PRId64", status: %d",
+                current->name_len, current->name,
+                current->value_len, current->value,
+                current->version, current->status);
+    }
+
+    rows->count = row_count;
+    return 0;
+}
+
+void fcfg_server_dao_free_rows(FCFGConfigRows *rows)
+{
+    FCFGConfigRecord *current;
+    FCFGConfigRecord *end;
+
+    if (rows->records == NULL) {
+        return;
+    }
+
+    end = rows->records + rows->count;
+    for (current=rows->records; current<end; current++) {
+        free(current->name);
+    }
+
+    free(rows->records);
+    rows->records = NULL;
+    rows->count = 0;
 }

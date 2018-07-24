@@ -152,11 +152,14 @@ static int setup_server_env(const char *config_filename)
 
 static int test()
 {
-    MySQLContext context;
+    FCFGMySQLContext context;
+    FCFGConfigRows rows;
     int result;
-    const char *env = "test";
-    const char *name = "system.log_level";
-    const char *value = "INFO";
+    const char *env = "prod";
+    const char *name = "system.server_level";
+    const char *value = "5";
+    const int64_t version = 64;
+    const int limit = 1;
 
     if ((result=fcfg_server_dao_init(&context)) != 0) {
         return result;
@@ -166,6 +169,10 @@ static int test()
     result = fcfg_server_dao_replace(&context, env, name, value);
     result = fcfg_server_dao_replace(&context, env, name, value);
 
+    fcfg_server_dao_query_by_env_and_version(&context,
+            env, version, limit, &rows);
+
+    fcfg_server_dao_free_rows(&rows);
     fcfg_server_dao_destroy(&context);
     return result;
 }

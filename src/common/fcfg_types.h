@@ -8,6 +8,13 @@
 
 #define FCFG_ERROR_INFO_SIZE             256
 
+#define FCFG_CONFIG_STATUS_NORMAL        0
+#define FCFG_CONFIG_STATUS_DELETED       1
+
+#define FCFG_CONFIG_ENV_SIZE     65
+#define FCFG_CONFIG_NAME_SIZE    65
+#define FCFG_CONFIG_VALUE_SIZE   (64 * 1024)
+
 typedef struct {
     unsigned char cmd;  //response command
     int body_len;       //response body length

@@ -38,6 +38,7 @@ typedef struct fcfg_proto_push_config_header {
 } FCFGProtoPushConfigHeader;
 
 typedef struct fcfg_proto_push_config_body_part {
+    unsigned char status;
     unsigned char name_len;
     char value_len[4];
     char version[8];

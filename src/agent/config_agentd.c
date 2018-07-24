@@ -85,18 +85,18 @@ int main(int argc, char *argv[])
 
     fcfg_proto_init();
 
+    r = fcfg_agent_shm_init();
+    gofailif(r,"fcfg_agent_shm_init error");
+
+    r = fcfg_agent_join();
+    gofailif(r,"fcfg_agent_join error");
+
     r = sf_service_init(fcfg_agent_alloc_thread_extra_data, NULL,
             NULL, fcfg_proto_set_body_length, fcfg_agent_deal_task,
             fcfg_agent_task_finish_cleanup, NULL, 100, sizeof(FCFGProtoHeader),
             0);
     gofailif(r,"service init error");
     sf_set_remove_from_ready_list(false);
-
-    r = fcfg_agent_shm_init();
-    gofailif(r,"fcfg_agent_shm_init error");
-
-    r = fcfg_agent_join();
-    gofailif(r,"fcfg_agent_join error");
 
     sf_accept_loop();
     if (g_schedule_flag) {

@@ -6,7 +6,7 @@
 
 typedef struct fcfg_agent_global_vars {
     ConnectionInfo join_conn;
-    struct shmcache_context context;
+    struct shmcache_context shm_context;
     char tmp_path[MAX_PATH_SIZE];
     char shm_config_file[MAX_PATH_SIZE];
     char env[64];

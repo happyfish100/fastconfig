@@ -8,6 +8,8 @@
 #include "fastcommon/ini_file_reader.h"
 #include "fcfg_types.h"
 
+#define FCFG_PROTO_ACK                 6
+
 #define FCFG_PROTO_ACTIVE_TEST_REQ    35   //center -> agent
 #define FCFG_PROTO_ACTIVE_TEST_RESP   36
 
@@ -16,6 +18,20 @@
 
 #define FCFG_PROTO_PUSH_CONFIG        39   //center -> agent
 #define FCFG_PROTO_PUSH_RESP          40
+
+#define FCFG_PROTO_SET_CONFIG_REQ     41  //client -> center
+#define FCFG_PROTO_DEL_CONFIG_REQ     43  //client -> center
+#define FCFG_PROTO_GET_CONFIG_REQ     45  //client -> center
+
+#define FCFG_PROTO_LIST_CONFIG_REQ    47  //client -> center
+#define FCFG_PROTO_LIST_CONFIG_RESP   48
+
+#define FCFG_PROTO_ADD_ENV_REQ        51  //client -> center
+#define FCFG_PROTO_DEL_ENV_REQ        53  //client -> center
+
+#define FCFG_PROTO_LIST_ENV_REQ       55  //client -> center
+#define FCFG_PROTO_LIST_ENV_RESP      56  //client -> center
+
 
 typedef struct fcfg_proto_header {
     char body_len[4];       //body length

@@ -1,4 +1,10 @@
 
+CREATE TABLE IF NOT EXISTS fast_environment (
+       env VARCHAR(64) NOT NULL,
+       create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+       PRIMARY KEY (env)
+);
+
 CREATE TABLE IF NOT EXISTS fast_config (
        env VARCHAR(64) NOT NULL,
        name VARCHAR(64) NOT NULL,

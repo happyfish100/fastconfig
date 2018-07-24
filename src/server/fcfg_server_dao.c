@@ -106,7 +106,7 @@ static int64_t fcfg_server_dao_next_version(FCFGMySQLContext *context,
     int64_t version;
     int len;
     char update_sql[256];
-    const char *nextval_sql = "select @nextval";
+    const char *nextval_sql = "SELECT @nextval";
    
     len = sprintf(update_sql, "UPDATE fast_increment "
         "SET value=(@nextval:=value+1) WHERE name = '%s'", name);

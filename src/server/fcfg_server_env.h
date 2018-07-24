@@ -19,6 +19,8 @@ extern "C" {
 
     void fcfg_server_env_destroy();
 
+    bool fcfg_server_env_exists(const char *env);
+
 #ifdef __cplusplus
 }
 #endif

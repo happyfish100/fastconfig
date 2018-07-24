@@ -3,6 +3,8 @@
 #define _FCFG_AGENT_GLOBAL_H
 
 #include "fastcommon/common_define.h"
+#include "shmcache/shmcache.h"
+#include "fastcommon/multi_socket_client.h"
 
 typedef struct fcfg_agent_global_vars {
     ConnectionInfo join_conn;

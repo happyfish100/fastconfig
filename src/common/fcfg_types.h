@@ -31,4 +31,19 @@ typedef struct {
     unsigned char cmd;   //response command
 } FCFGResponseInfo;
 
+typedef struct tagFCFGJoinResp {
+    int64_t center_cfg_version;
+} FCFGJoinResp;
+
+typedef struct tagFCFGPushConfigHeader {
+    short count;  //config count in body
+} FCFGPushConfigHeader;
+
+typedef struct tagFCFGPushConfigBodyPart {
+    unsigned char status;
+    unsigned char name_len;
+    int value_len;
+    int64_t version;
+} FCFGPushConfigBodyPart;
+
 #endif

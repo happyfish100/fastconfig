@@ -4,6 +4,7 @@
 #include "fastcommon/connection_pool.h"
 #include "fastcommon/ini_file_reader.h"
 #include "fcfg_proto.h"
+#include "fcfg_types.h"
 
 void fcfg_proto_init()
 {
@@ -21,10 +22,18 @@ int fcfg_proto_deal_actvie_test(struct fast_task_info *task,
     return FCFG_PROTO_EXPECT_BODY_LEN(task, request, response, 0);
 }
 
-int fcfg_proto_set_join_req(char *FCFGProtoJoinReq, char *env, int64_t version)
+int fcfg_proto_set_join_req(char *buff, char *env, int64_t version)
 {
-    strncpy(FCFGProtoJoinReq->env, env, sizeof(FCFGProtoJoinReq->env));
-    long2buff(version, FCFGProtoJoinReq->agent_cfg_version);
+    FCFGProtoHeader *fcfg_header_pro;
+    FCFGProtoJoinReq *fcfg_join_req_pro;
+
+    fcfg_header_pro = (FCFGProtoHeader *)buff;
+    fcfg_header_pro->cmd = FCFG_PROTO_JION_REQ;
+    int2buff(sizeof(FCFGProtoJoinReq), fcfg_header_pro->body_len);
+
+    fcfg_join_req_pro = (FCFGProtoJoinReq *)(buff + sizeof(FCFGProtoHeader));
+    strncpy(fcfg_join_req_pro->env, env, sizeof(fcfg_join_req_pro->env));
+    long2buff(version, fcfg_join_req_pro->agent_cfg_version);
 
     return 0;
 }
@@ -37,7 +46,8 @@ int fcfg_extract_join_resp(FCFGJoinResp *join_resp_data,
     return 0;
 }
 
-int fcfg_extract_push_config_header(FCFGProtoPushConfigHeader *fcfg_push_header_pro
+int fcfg_extract_push_config_header(
+        FCFGProtoPushConfigHeader *fcfg_push_header_pro,
         FCFGPushConfigHeader *fcfg_push_header)
 {
     fcfg_push_header->count = buff2short(fcfg_push_header_pro->count);
@@ -50,6 +60,8 @@ int fcfg_check_push_config_body_len(FCFGPushConfigHeader *fcfg_push_header,
 {
     int i;
     int size;
+    unsigned char name_len;
+    int value_len;
     int body_part_len = 0;
     int count = fcfg_push_header->count;
 
@@ -70,7 +82,7 @@ int fcfg_check_push_config_body_len(FCFGPushConfigHeader *fcfg_push_header,
     return 0;
 }
 
-int fcfg_extract_push_config_header (
+int fcfg_extract_push_config_body_data (
         FCFGProtoPushConfigBodyPart *fcfg_push_body_pro,
         FCFGPushConfigBodyPart *fcfg_push_body_data)
 {
@@ -80,4 +92,11 @@ int fcfg_extract_push_config_header (
     fcfg_push_body_data->version = buff2long(fcfg_push_body_pro->version);
 
     return 0;
+}
+void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
+        FCFGResponseInfo *resp_info)
+{
+    resp_info->cmd      = header_pro->cmd;
+    resp_info->body_len = buff2int(header_pro->body_len);
+    resp_info->status   = header_pro->status;
 }

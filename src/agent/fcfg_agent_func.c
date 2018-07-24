@@ -5,6 +5,7 @@
 #include "fastcommon/logger.h"
 #include "sf/sf_global.h"
 #include "sf/sf_service.h"
+#include "sf/sf_util.h"
 #include "common/fcfg_types.h"
 #include "fcfg_agent_global.h"
 #include "fcfg_agent_func.h"

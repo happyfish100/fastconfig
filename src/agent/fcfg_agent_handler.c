@@ -21,7 +21,6 @@
 #include "sf/sf_nio.h"
 #include "sf/sf_global.h"
 #include "common/fcfg_proto.h"
-#include "fcfg_agent_types.h"
 #include "fcfg_agent_global.h"
 #include "fcfg_agent_func.h"
 #include "fcfg_agent_handler.h"
@@ -43,17 +42,16 @@ void fcfg_agent_task_finish_cleanup(struct fast_task_info *task)
 
 static int fcfg_agent_set_config_version(int64_t version)
 {
-    char key[128] = {0};
-    int size;
-    int64_t version;
+    int ret;
     struct shmcache_value_info value;
     struct shmcache_key_info key;
     
     key.data = g_agent_global_vars.shm_version_key;
     key.length = strlen(g_agent_global_vars.shm_version_key);
-    value.data = &version;
+    value.data = (char *)&version;
     value.length = sizeof(version);
     value.expires = SHMCACHE_NEVER_EXPIRED;
+    value.options = SHMCACHE_SERIALIZER_STRING;
     ret = shmcache_set_ex(&g_agent_global_vars.shm_context,
             &key,
             &value);
@@ -65,12 +63,9 @@ static int fcfg_agent_set_config_version(int64_t version)
     return ret;
 }
 
-
 static int fcfg_agent_get_config_version()
 {
-    char key[128] = {0};
     char buff[64];
-    int size;
     int ret;
     int64_t version;
     struct shmcache_value_info value;
@@ -86,7 +81,7 @@ static int fcfg_agent_get_config_version()
         return 0;
     }
     memcpy(buff, value.data, value.length);
-    buff[key.length] = '\0';
+    buff[value.length] = '\0';
     version = atol(buff);
 
     return version;
@@ -94,12 +89,12 @@ static int fcfg_agent_get_config_version()
 
 
 static int fcfg_do_task_push_config(struct fast_task_info *task,
-        const DFSRequestInfo *request, DFSResponseInfo *response)
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
 {
-    char *name_tmp;
-    char *value_tmp;
     int ret;
     int i;
+    int size;
+    int64_t max_version;
     FCFGPushConfigHeader fcfg_push_header;
     FCFGProtoPushConfigHeader *fcfg_push_header_pro;
     FCFGProtoPushConfigBodyPart *fcfg_push_body_pro;
@@ -108,11 +103,11 @@ static int fcfg_do_task_push_config(struct fast_task_info *task,
     struct shmcache_value_info value;
 
     fcfg_push_header_pro = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
-    fcfg_extract_push_config_header(fcfg_push_header_pro, fcfg_push_header);
+    fcfg_extract_push_config_header(fcfg_push_header_pro, &fcfg_push_header);
 
     fcfg_push_body_pro = (FCFGProtoPushConfigBodyPart *)(fcfg_push_header_pro +
             1);
-    ret = fcfg_check_push_config_body_len(fcfg_push_header, fcfg_push_body_pro,
+    ret = fcfg_check_push_config_body_len(&fcfg_push_header, fcfg_push_body_pro,
             request->body_len - sizeof(FCFGProtoPushConfigHeader));
     if (ret) {
         lerr("fcfg_check_push_config_body_len fail.count:%d",
@@ -121,16 +116,17 @@ static int fcfg_do_task_push_config(struct fast_task_info *task,
     }
     size = sizeof(FCFGPushConfigBodyPart);
     for (i = 0; i < fcfg_push_header.count; i++) {
-        fcfg_extract_push_config_header(fcfg_push_body_pro, &fcfg_push_body_data);
+        fcfg_extract_push_config_body_data(fcfg_push_body_pro, &fcfg_push_body_data);
         key.data = fcfg_push_body_pro->name;
         key.length = fcfg_push_body_data.name_len;
         value.data = fcfg_push_body_pro->name + fcfg_push_body_data.name_len;
         value.length = fcfg_push_body_data.value_len;
+        value.options = SHMCACHE_SERIALIZER_STRING;
         value.expires = SHMCACHE_NEVER_EXPIRED;
         if (fcfg_push_body_data.status == FCFG_CONFIG_STATUS_NORMAL) {
-            ret = shmcache_set_ex(g_agent_global_vars.shm_context, &key, &value);
+            ret = shmcache_set_ex(&g_agent_global_vars.shm_context, &key, &value);
         } else {
-            ret = shmcache_delete(g_agent_global_vars.shm_context, &key);
+            ret = shmcache_delete(&g_agent_global_vars.shm_context, &key);
         }
         if (ret) {
             lerr ("shmcache_set_ex/delete fail:status:%d, %d, %s",
@@ -151,10 +147,10 @@ static int fcfg_do_task_push_config(struct fast_task_info *task,
 }
 
 static int fcfg_proto_deal_push_config (struct fast_task_info *task,
-        const DFSRequestInfo *request, DFSResponseInfo *response)
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
 {
     int result = 0;
-    if ((result=DFS_PROTO_CHECK_MIN_BODY_LEN(task, request, response,
+    if ((result=FCFG_PROTO_CHECK_MIN_BODY_LEN(task, request, response,
                     sizeof(FCFGProtoPushConfigHeader))) != 0) {
         return result;
     }
@@ -239,7 +235,7 @@ int fcfg_agent_deal_task(struct fast_task_info *task)
 }
 int fcfg_agent_shm_init ()
 {
-    return shmcache_init_from_file(&g_agent_global_var.shm_context,
+    return shmcache_init_from_file(&g_agent_global_vars.shm_context,
             g_agent_global_vars.shm_config_file);
 }
 
@@ -248,10 +244,8 @@ int fcfg_agent_join ()
     int ret;
     char buff[128];
     int64_t version;
-    FCFGProtoHeader *fcfg_header_pro;
-    FCFGProtoJoinReq *fcfg_join_req_pro;
     FCFGProtoHeader fcfg_header_resp_pro;
-    DFSResponseInfo resp_info;
+    FCFGResponseInfo resp_info;
     FCFGJoinResp join_resp_data;
 
     version = fcfg_agent_get_config_version();
@@ -266,12 +260,7 @@ int fcfg_agent_join ()
             sleep(1);
             continue;
         }
-        fcfg_header_pro = (FCFGProtoHeader *)buff;
-        fcfg_header_pro->cmd = FCFG_PROTO_JION_REQ;
-        fcfg_header_pro->body_len = sizeof(FCFGProtoJoinReq);
-        fcfg_join_req_pro = buff + sizeof(FCFGProtoHeader);
-
-        fcfg_proto_set_join_req(fcfg_join_req_pro, g_agent_global_vars.env, version);
+        fcfg_proto_set_join_req(buff, g_agent_global_vars.env, version);
 
         ret = tcpsenddata_nb(g_agent_global_vars.join_conn.sock, buff,
                 sizeof(FCFGProtoHeader) + sizeof(FCFGProtoJoinReq), g_sf_global_vars.network_timeout);
@@ -295,7 +284,8 @@ int fcfg_agent_join ()
             } else {
                 resp_info.error.message[0] = '\0';
             }
-            lerr("agent join response err. resp cmd:%d, error msg:%s", resp_info.error.message);
+            lerr("agent join response err. resp cmd:%d, error msg:%s",
+                    resp_info.cmd, resp_info.error.message);
             sleep(1);
             continue;
         } else {
@@ -313,7 +303,7 @@ int fcfg_agent_join ()
                     linfo("join server. resp version:%"PRId64, join_resp_data.center_cfg_version);
                     conn_pool_disconnect_server(&g_agent_global_vars.join_conn);
                     if (join_resp_data.center_cfg_version > version) {
-                        ret = shmcache_remove_all(g_agent_global_vars.shm_context);
+                        ret = shmcache_remove_all(&g_agent_global_vars.shm_context);
                         if (ret) {
                             lerr("shmcache_remove_all fail. %d, %s", ret,
                                     strerror(ret));

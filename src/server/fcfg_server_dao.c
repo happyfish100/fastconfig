@@ -8,6 +8,9 @@
 #include "fcfg_server_global.h"
 #include "fcfg_server_dao.h"
 
+#define FCFG_KEY_NAME_ENVIRONMENT_VERSION  "fast_environment_version"
+#define FCFG_KEY_NAME_CONFIG_VERSION       "fast_config_version"
+
 #define FCFG_MYSQL_STMT_INIT(stmt, mysql) \
     do {  \
         stmt = mysql_stmt_init(mysql); \
@@ -95,16 +98,19 @@ void fcfg_server_dao_destroy(FCFGMySQLContext *context)
     mysql_close(&context->mysql);
 }
 
-static int64_t fcfg_server_dao_next_version(FCFGMySQLContext *context)
+static int64_t fcfg_server_dao_next_version(FCFGMySQLContext *context,
+        const char *name)
 {
     MYSQL_RES *mysql_result;
     MYSQL_ROW row;
     int64_t version;
-    const char *update_sql = "update fast_increment "
-        "set value=(@nextval:=value+1) where name = 'fast_config_version'";
+    int len;
+    char update_sql[256];
     const char *nextval_sql = "select @nextval";
-
-    if (mysql_real_query(&context->mysql, update_sql, strlen(update_sql)) != 0) {
+   
+    len = sprintf(update_sql, "UPDATE fast_increment "
+        "SET value=(@nextval:=value+1) WHERE name = '%s'", name);
+    if (mysql_real_query(&context->mysql, update_sql, len) != 0) {
         logError("file: "__FILE__", line: %d, "
                 "call mysql_real_query fail, error info: %s, sql: %s",
                 __LINE__, mysql_error(&context->mysql), update_sql);
@@ -146,6 +152,12 @@ static int64_t fcfg_server_dao_next_version(FCFGMySQLContext *context)
     return version;
 }
 
+#define fcfg_server_dao_next_config_version(context) \
+    fcfg_server_dao_next_version(context, FCFG_KEY_NAME_CONFIG_VERSION)
+
+#define fcfg_server_dao_next_env_version(context) \
+    fcfg_server_dao_next_version(context, FCFG_KEY_NAME_ENVIRONMENT_VERSION)
+
 int fcfg_server_dao_set(FCFGMySQLContext *context, const char *env,
         const char *name, const char *value)
 {
@@ -156,7 +168,7 @@ int fcfg_server_dao_set(FCFGMySQLContext *context, const char *env,
     unsigned long name_len;
     unsigned long value_len;
 
-    version = fcfg_server_dao_next_version(context);
+    version = fcfg_server_dao_next_config_version(context);
     if (version < 0) {
         return EINVAL;
     }
@@ -240,7 +252,7 @@ int fcfg_server_dao_delete(FCFGMySQLContext *context, const char *env,
     unsigned long env_len;
     unsigned long name_len;
 
-    version = fcfg_server_dao_next_version(context);
+    version = fcfg_server_dao_next_config_version(context);
     if (version < 0) {
         return EINVAL;
     }
@@ -492,21 +504,31 @@ void fcfg_server_dao_free_config_array(FCFGConfigArray *array)
 }
 
 static int fcfg_server_dao_env_execute(FCFGMySQLContext *context,
-        const char *sql, const char *env)
+        const char *sql, const char *env, int *affected_rows)
 {
     MYSQL_STMT *stmt;
-    MYSQL_BIND binds[1];
+    MYSQL_BIND binds[2];
     unsigned long env_len;
+    int64_t version;
     int result;
+
+    version = fcfg_server_dao_next_env_version(context);
+    if (version < 0) {
+        return EINVAL;
+    }
 
     FCFG_MYSQL_STMT_INIT(stmt, &context->mysql);
     FCFG_MYSQL_STMT_PREPARE(stmt, sql);
 
     env_len = strlen(env);
     memset(binds, 0, sizeof(binds));
-    binds[0].buffer_type = MYSQL_TYPE_STRING;
-    binds[0].buffer = (char *)env;
-    binds[0].length = &env_len;
+
+    binds[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    binds[0].buffer = (char *)&version;
+
+    binds[1].buffer_type = MYSQL_TYPE_STRING;
+    binds[1].buffer = (char *)env;
+    binds[1].length = &env_len;
 
     do {
         if (mysql_stmt_bind_param(stmt, binds) != 0) {
@@ -527,6 +549,10 @@ static int fcfg_server_dao_env_execute(FCFGMySQLContext *context,
             break;
         }
 
+        if (affected_rows != NULL) {
+            *affected_rows = mysql_stmt_affected_rows(stmt);
+        }
+
         result = 0;
     } while (0);
 
@@ -536,19 +562,34 @@ static int fcfg_server_dao_env_execute(FCFGMySQLContext *context,
 
 int fcfg_server_dao_add_env(FCFGMySQLContext *context, const char *env)
 {
+    int affected_rows;
+    int result;
+    const char *update_sql = "UPDATE fast_environment SET status = 0, "
+        "version = ? WHERE env = ?";
     const char *insert_sql = "INSERT INTO fast_environment "
-        "(env) VALUES (?)";
-    return fcfg_server_dao_env_execute(context, insert_sql, env);
+        "(version, env, status) VALUES (?, ?, 0)";
+
+    affected_rows = 0;
+    if ((result=fcfg_server_dao_env_execute(context, update_sql, env,
+                    &affected_rows)) != 0)
+    {
+        return result;
+    }
+    if (affected_rows == 0) {
+        return fcfg_server_dao_env_execute(context, insert_sql, env, &affected_rows);
+    } else {
+        return 0;
+    }
 }
 
 int fcfg_server_dao_del_env(FCFGMySQLContext *context, const char *env)
 {
-    const char *delete_sql = "DELETE FROM fast_environment WHERE env = ?";
-    return fcfg_server_dao_env_execute(context, delete_sql, env);
+    const char *delete_sql = "UPDATE fast_environment SET status = 1, "
+        "version = ? WHERE env = ?";
+    return fcfg_server_dao_env_execute(context, delete_sql, env, NULL);
 }
 
-int fcfg_server_dao_list_env(FCFGMySQLContext *context, const char *env,
-        FCFGEnvArray *array)
+int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array)
 {
     MYSQL_RES *mysql_result;
     MYSQL_ROW row;
@@ -556,7 +597,8 @@ int fcfg_server_dao_list_env(FCFGMySQLContext *context, const char *env,
     FCFGEnvRecord  *end;
     int row_count;
     int bytes;
-    const char *select_sql = "SELECT env FROM fast_environment ORDER BY env";
+    const char *select_sql = "SELECT env FROM fast_environment "
+        "WHERE status = 0 ORDER BY env";
 
     if (mysql_real_query(&context->mysql, select_sql, strlen(select_sql)) != 0) {
         logError("file: "__FILE__", line: %d, "
@@ -613,14 +655,14 @@ int fcfg_server_dao_list_env(FCFGMySQLContext *context, const char *env,
     mysql_free_result(mysql_result);
 
     if (current < end) {
-        fcfg_server_dao_free_env_rows(array);
+        fcfg_server_dao_free_env_array(array);
         return EFAULT;
     }
 
     return 0;
 }
 
-void fcfg_server_dao_free_env_rows(FCFGEnvArray *array)
+void fcfg_server_dao_free_env_array(FCFGEnvArray *array)
 {
     FCFGEnvRecord *current;
     FCFGEnvRecord  *end;

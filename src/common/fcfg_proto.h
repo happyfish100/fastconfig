@@ -115,11 +115,52 @@ static inline int fcfg_proto_check_min_body_length(struct fast_task_info *task,
     return 0;
 }
 
+static inline int fcfg_proto_check_max_body_length(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response,
+        const int max_body_length, const char *filename, const int line)
+{
+    if (request->body_len > max_body_length) {
+        response->error.length = sprintf(response->error.message,
+                "request body length: %d > %d",
+                request->body_len, max_body_length);
+
+        logError("file: %s, line: %d, "
+                "client ip: %s, cmd: %d, %s",
+                filename, line, task->client_ip, request->cmd,
+                response->error.message);
+        return EINVAL;
+    }
+
+    return 0;
+}
+
+static inline int fcfg_proto_check_body_length(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response,
+        const int min_body_length, const int max_body_length,
+        const char *filename, const int line)
+{
+    int result;
+    if ((result=fcfg_proto_check_min_body_length(task, request, response,
+            min_body_length, filename, line)) != 0)
+    {
+        return result;
+    }
+    return fcfg_proto_check_max_body_length(task, request, response,
+            max_body_length, filename, line);
+}
+
 #define FCFG_PROTO_EXPECT_BODY_LEN(task, request, response, expect_length) \
     fcfg_proto_expect_body_length(task, request, response, expect_length, __FILE__, __LINE__)
 
 #define FCFG_PROTO_CHECK_MIN_BODY_LEN(task, request, response, min_length) \
     fcfg_proto_check_min_body_length(task, request, response, min_length, __FILE__, __LINE__)
+
+#define FCFG_PROTO_CHECK_MAX_BODY_LEN(task, request, response, max_length) \
+    fcfg_proto_check_max_body_length(task, request, response, max_length, __FILE__, __LINE__)
+
+#define FCFG_PROTO_CHECK_BODY_LEN(task, request, response, min_length, max_length) \
+    fcfg_proto_check_body_length(task, request, response, \
+            min_length, max_length, __FILE__, __LINE__)
 
 #ifdef __cplusplus
 }

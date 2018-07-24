@@ -7,7 +7,7 @@ TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 
 ALL_OBJS = ../common/fcfg_proto.o fcfg_server_func.o fcfg_server_handler.o fcfg_server_global.o \
-           fcfg_server_dao.o
+           fcfg_server_dao.o fcfg_server_env.o
 
 ALL_PRGS = config_serverd
 

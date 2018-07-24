@@ -3,7 +3,7 @@
 #define _FCFG_SERVER_DAO_H
 
 #include <mysql.h>
-
+#include "fcfg_server_env.h"
 
 typedef struct {
     MYSQL mysql;
@@ -27,15 +27,6 @@ typedef struct {
     FCFGConfigRecord *records;
     int count;
 } FCFGConfigArray;
-
-typedef struct {
-    char *env;
-} FCFGEnvRecord;
-
-typedef struct {
-    FCFGEnvRecord *records;
-    int count;
-} FCFGEnvArray;
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,10 +56,9 @@ extern "C" {
 
     int fcfg_server_dao_del_env(FCFGMySQLContext *context, const char *env);
 
-    int fcfg_server_dao_list_env(FCFGMySQLContext *context, const char *env,
-            FCFGEnvArray *array);
+    int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array);
 
-    void fcfg_server_dao_free_env_rows(FCFGEnvArray *array);
+    void fcfg_server_dao_free_env_array(FCFGEnvArray *array);
 
 #ifdef __cplusplus
 }

@@ -26,6 +26,7 @@
 #include "fcfg_server_func.h"
 #include "fcfg_server_handler.h"
 #include "fcfg_server_dao.h"
+#include "fcfg_server_env.h"
 
 static bool daemon_mode = true;
 static int setup_server_env(const char *config_filename);
@@ -80,11 +81,14 @@ int main(int argc, char *argv[])
 
     r = sf_socket_server();
     gofailif(r, "socket server error");
-    r=write_to_pid_file(g_pid_filename);
+    r = write_to_pid_file(g_pid_filename);
     gofailif(r, "write pid error");
 
     r = fcfg_server_handler_init();
-    gofailif(r,"encoder handler init error");
+    gofailif(r,"server handler init error");
+
+    r = fcfg_server_env_init();
+    gofailif(r,"server env init error");
 
     fcfg_proto_init();
 
@@ -157,7 +161,7 @@ static int test()
     int result;
     const char *env = "test";
     const char *name = "system.server_level";
-    const char *value = "1";
+    const char *value = "5";
     const int64_t version = 64;
     const int limit = 5;
 

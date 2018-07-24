@@ -24,6 +24,7 @@
 #include "fcfg_server_types.h"
 #include "fcfg_server_global.h"
 #include "fcfg_server_func.h"
+#include "fcfg_server_dao.h"
 #include "fcfg_server_handler.h"
 
 int fcfg_server_handler_init()
@@ -47,6 +48,29 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     response->cmd = FCFG_PROTO_JION_RESP;
     response->response_done = true;
     return 0;
+}
+
+static int fcfg_proto_deal_add_del_env(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    FCFGMySQLContext *mysql_context;
+    char *env;
+    int result;
+
+    if ((result=FCFG_PROTO_CHECK_BODY_LEN(task, request, response,
+                    1, FCFG_CONFIG_ENV_SIZE - 1)) != 0)
+    {
+        return result;
+    }
+
+    mysql_context = &((FCFGServerContext *)task->arg)->mysql_context;
+    env = task->data + sizeof(FCFGProtoHeader);
+    *(env + request->body_len) = '\0';
+    if (request->cmd == FCFG_PROTO_ADD_ENV_REQ) {
+        return fcfg_server_dao_add_env(mysql_context, env);
+    } else {
+        return fcfg_server_dao_del_env(mysql_context, env);
+    }
 }
 
 int fcfg_server_deal_task(struct fast_task_info *task)
@@ -76,6 +100,12 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                 break;
             case FCFG_PROTO_JION_REQ:
                 result = fcfg_proto_deal_join(task, &request, &response);
+                break;
+            case FCFG_PROTO_ADD_ENV_REQ:
+                result = fcfg_proto_deal_add_del_env(task, &request, &response);
+                break;
+            case FCFG_PROTO_DEL_ENV_REQ:
+                result = fcfg_proto_deal_add_del_env(task, &request, &response);
                 break;
             default:
                 response.error.length = sprintf(response.error.message,
@@ -134,5 +164,7 @@ void *fcfg_server_alloc_thread_extra_data(const int thread_index)
     }
 
     memset(thread_extra_data, 0, sizeof(FCFGServerContext));
+    fcfg_server_dao_init(&thread_extra_data->mysql_context);
+
     return thread_extra_data;
 }

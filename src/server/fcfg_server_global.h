@@ -3,6 +3,7 @@
 #define _FCFG_SERVER_GLOBAL_H
 
 #include "fastcommon/common_define.h"
+#include "fcfg_server_env.h"
 
 typedef struct fcfg_server_global_vars {
     struct {
@@ -12,6 +13,7 @@ typedef struct fcfg_server_global_vars {
         char *password;
         char *database;
     } db_config;
+    FCFGEnvArray *env_array;
     char tmp_path[MAX_PATH_SIZE];
 } FCFGServerGlobalVars;
 

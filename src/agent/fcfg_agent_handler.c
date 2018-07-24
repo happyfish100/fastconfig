@@ -302,8 +302,8 @@ int fcfg_agent_join ()
                             (FCFGProtoJoinResp *)buff);
                     linfo("join server. resp version:%"PRId64, join_resp_data.center_cfg_version);
                     conn_pool_disconnect_server(&g_agent_global_vars.join_conn);
-                    if (join_resp_data.center_cfg_version > version) {
-                        ret = shmcache_remove_all(&g_agent_global_vars.shm_context);
+                    if (join_resp_data.center_cfg_version < version) {
+                        ret = shmcache_clear(&g_agent_global_vars.shm_context);
                         if (ret) {
                             lerr("shmcache_remove_all fail. %d, %s", ret,
                                     strerror(ret));

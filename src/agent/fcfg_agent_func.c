@@ -7,6 +7,7 @@
 #include "sf/sf_service.h"
 #include "sf/sf_util.h"
 #include "common/fcfg_types.h"
+#include "common/fcfg_proto.h"
 #include "fcfg_agent_global.h"
 #include "fcfg_agent_func.h"
 
@@ -66,19 +67,20 @@ int fcfg_agent_load_config(const char *filename)
 
     iniFreeContext(&ini_context);
 
-    linfo("tmp_path: %s, "
+    linfo("base_path: %s, "
           "shm_config_file: %s, "
           "env: %s, "
           "shm_version_key: %s, "
           "server_ip:%s, "
           "server_port:%d",
-          g_agent_global_vars.tmp_path,
+          g_sf_global_vars.base_path,
           g_agent_global_vars.shm_config_file,
           g_agent_global_vars.env,
           g_agent_global_vars.shm_version_key,
           g_agent_global_vars.join_conn.ip_addr,
           g_agent_global_vars.join_conn.port);
 
+    sf_log_config_ex(NULL);
     return 0;
 }
 int fcfg_proto_set_join_req(char *buff, char *env, int64_t version)

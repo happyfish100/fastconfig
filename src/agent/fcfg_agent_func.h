@@ -2,6 +2,7 @@
 #ifndef _FCFG_AGENT_FUNC_H
 #define _FCFG_AGENT_FUNC_H
 
+#include "fcfg_agent_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,21 +25,6 @@ void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
         FCFGResponseInfo *resp_info);
 
 #define FCFG_AGENT_SHM_VERSION_KEY_SUFFIX   "shm_version_key"
-
-typedef struct tagFCFGJoinResp {
-    int64_t center_cfg_version;
-} FCFGJoinResp;
-
-typedef struct tagFCFGPushConfigHeader {
-    short count;  //config count in body
-} FCFGPushConfigHeader;
-
-typedef struct tagFCFGPushConfigBodyPart {
-    unsigned char status;
-    unsigned char name_len;
-    int value_len;
-    int64_t version;
-} FCFGPushConfigBodyPart;
 
 #ifdef __cplusplus
 }

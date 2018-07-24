@@ -153,26 +153,39 @@ static int setup_server_env(const char *config_filename)
 static int test()
 {
     FCFGMySQLContext context;
-    FCFGConfigRows rows;
+    FCFGConfigArray rows;
     int result;
-    const char *env = "prod";
+    const char *env = "test";
     const char *name = "system.server_level";
-    const char *value = "5";
+    const char *value = "1";
     const int64_t version = 64;
-    const int limit = 1;
+    const int limit = 5;
 
     if ((result=fcfg_server_dao_init(&context)) != 0) {
         return result;
     }
 
-    result = fcfg_server_dao_replace(&context, env, name, value);
-    result = fcfg_server_dao_replace(&context, env, name, value);
-    result = fcfg_server_dao_replace(&context, env, name, value);
+    result = fcfg_server_dao_set(&context, env, name, value);
+    result = fcfg_server_dao_set(&context, env, name, value);
+    result = fcfg_server_dao_set(&context, env, name, value);
 
-    fcfg_server_dao_query_by_env_and_version(&context,
+    logInfo("fcfg_server_dao_list_by_env_and_version output:");
+    fcfg_server_dao_list_by_env_and_version(&context,
             env, version, limit, &rows);
+    fcfg_server_dao_free_config_array(&rows);
 
-    fcfg_server_dao_free_rows(&rows);
+    /*
+    logInfo("delete: %d", fcfg_server_dao_delete(&context, env, name));
+    logInfo("delete: %d", fcfg_server_dao_delete(&context, env, name));
+    logInfo("delete: %d", fcfg_server_dao_delete(&context, env, name));
+    */
+
+    logInfo("fcfg_server_dao_search output:");
+    name = "system%";
+    fcfg_server_dao_search(&context,
+            env, name, limit, &rows);
+    fcfg_server_dao_free_config_array(&rows);
+
     fcfg_server_dao_destroy(&context);
     return result;
 }

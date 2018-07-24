@@ -41,6 +41,13 @@ void fcfg_server_task_finish_cleanup(struct fast_task_info *task)
     sf_task_finish_clean_up(task);
 }
 
+static int fcfg_proto_deal_join(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    response->cmd = FCFG_PROTO_JION_RESP;
+    response->response_done = true;
+    return 0;
+}
 
 int fcfg_server_deal_task(struct fast_task_info *task)
 {
@@ -53,7 +60,7 @@ int fcfg_server_deal_task(struct fast_task_info *task)
     int time_used;
 
     tbegin = get_current_time_ms();
-    response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
+    response.cmd = FCFG_PROTO_ACK;
     response.body_len = 0;
     response.error.length = 0;
     response.error.message[0] = '\0';
@@ -64,7 +71,11 @@ int fcfg_server_deal_task(struct fast_task_info *task)
     do {
         switch (request.cmd) {
             case FCFG_PROTO_ACTIVE_TEST_REQ:
+                response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
                 result = fcfg_proto_deal_actvie_test(task, &request, &response);
+                break;
+            case FCFG_PROTO_JION_REQ:
+                result = fcfg_proto_deal_join(task, &request, &response);
                 break;
             default:
                 response.error.length = sprintf(response.error.message,

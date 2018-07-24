@@ -11,6 +11,7 @@ typedef struct {
     MYSQL_STMT *insert_stmt;
     MYSQL_STMT *delete_stmt;
     MYSQL_STMT *select_stmt;
+    MYSQL_STMT *search_stmt;
 } FCFGMySQLContext;
 
 typedef struct {
@@ -25,7 +26,16 @@ typedef struct {
 typedef struct {
     FCFGConfigRecord *records;
     int count;
-} FCFGConfigRows;
+} FCFGConfigArray;
+
+typedef struct {
+    char *env;
+} FCFGEnvRecord;
+
+typedef struct {
+    FCFGEnvRecord *records;
+    int count;
+} FCFGEnvArray;
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,17 +45,30 @@ extern "C" {
 
     void fcfg_server_dao_destroy(FCFGMySQLContext *context);
 
-    int fcfg_server_dao_replace(FCFGMySQLContext *context, const char *env,
+    int fcfg_server_dao_set(FCFGMySQLContext *context, const char *env,
             const char *name, const char *value);
 
     int fcfg_server_dao_delete(FCFGMySQLContext *context, const char *env,
             const char *name);
 
-    int fcfg_server_dao_query_by_env_and_version(FCFGMySQLContext *context,
+    int fcfg_server_dao_list_by_env_and_version(FCFGMySQLContext *context,
             const char *env, const int64_t version, const int limit,
-            FCFGConfigRows *rows);
+            FCFGConfigArray *array);
 
-    void fcfg_server_dao_free_rows(FCFGConfigRows *rows);
+    int fcfg_server_dao_search(FCFGMySQLContext *context,
+            const char *env, const char *name, const int limit,
+            FCFGConfigArray *array);
+
+    void fcfg_server_dao_free_config_array(FCFGConfigArray *array);
+
+    int fcfg_server_dao_add_env(FCFGMySQLContext *context, const char *env);
+
+    int fcfg_server_dao_del_env(FCFGMySQLContext *context, const char *env);
+
+    int fcfg_server_dao_list_env(FCFGMySQLContext *context, const char *env,
+            FCFGEnvArray *array);
+
+    void fcfg_server_dao_free_env_rows(FCFGEnvArray *array);
 
 #ifdef __cplusplus
 }

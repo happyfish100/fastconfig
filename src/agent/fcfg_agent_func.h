@@ -8,8 +8,38 @@ extern "C" {
 #endif
 
 int fcfg_agent_load_config(const char *filename);
+int fcfg_proto_set_join_req(char *buff, char *env,
+        int64_t version);
+int fcfg_extract_join_resp(FCFGJoinResp *join_resp_data,
+        FCFGProtoJoinResp *join_resp_pro);
+int fcfg_extract_push_config_header(
+        FCFGProtoPushConfigHeader *fcfg_push_header_pro,
+        FCFGPushConfigHeader *fcfg_push_header);
+int fcfg_check_push_config_body_len(FCFGPushConfigHeader *fcfg_push_header,
+        FCFGProtoPushConfigBodyPart *fcfg_push_body_pro, int len);
+int fcfg_extract_push_config_body_data (
+        FCFGProtoPushConfigBodyPart *fcfg_push_body_pro,
+        FCFGPushConfigBodyPart *fcfg_push_body_data);
+void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
+        FCFGResponseInfo *resp_info);
 
 #define FCFG_AGENT_SHM_VERSION_KEY_SUFFIX   "shm_version_key"
+
+typedef struct tagFCFGJoinResp {
+    int64_t center_cfg_version;
+} FCFGJoinResp;
+
+typedef struct tagFCFGPushConfigHeader {
+    short count;  //config count in body
+} FCFGPushConfigHeader;
+
+typedef struct tagFCFGPushConfigBodyPart {
+    unsigned char status;
+    unsigned char name_len;
+    int value_len;
+    int64_t version;
+} FCFGPushConfigBodyPart;
+
 #ifdef __cplusplus
 }
 #endif

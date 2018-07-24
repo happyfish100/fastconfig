@@ -60,20 +60,6 @@ int fcfg_proto_set_body_length(struct fast_task_info *task);
 
 int fcfg_proto_deal_actvie_test(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response);
-int fcfg_proto_set_join_req(char *buff, char *env,
-        int64_t version);
-int fcfg_extract_join_resp(FCFGJoinResp *join_resp_data,
-        FCFGProtoJoinResp *join_resp_pro);
-int fcfg_extract_push_config_header(
-        FCFGProtoPushConfigHeader *fcfg_push_header_pro,
-        FCFGPushConfigHeader *fcfg_push_header);
-int fcfg_check_push_config_body_len(FCFGPushConfigHeader *fcfg_push_header,
-        FCFGProtoPushConfigBodyPart *fcfg_push_body_pro, int len);
-int fcfg_extract_push_config_body_data (
-        FCFGProtoPushConfigBodyPart *fcfg_push_body_pro,
-        FCFGPushConfigBodyPart *fcfg_push_body_data);
-void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
-        FCFGResponseInfo *resp_info);
 
 static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,

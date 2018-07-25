@@ -31,8 +31,10 @@ static void usage(char *program)
 static void parse_args(int argc, char **argv)
 {
     int ch;
+    int found = 0;
 
     while ((ch = getopt(argc, argv, "hc:e:n:v:")) != -1) {
+        found = 1;
         switch (ch) {
             case 'c':
                 g_fcfg_admin_set_vars.config_file = optarg;
@@ -49,9 +51,11 @@ static void parse_args(int argc, char **argv)
             case 'h':
             default:
                 show_usage = true;
-                usage(argv[0]);
                 break;
         }
+    }
+    if (found == 0) {
+        show_usage = true;
     }
 }
 
@@ -187,22 +191,31 @@ int main (int argc, char **argv)
         return 0;
     }
 
+    log_init2();
+
     ret = fcfg_admin_set_load_config(g_fcfg_admin_set_vars.config_file);
     if (ret) {
-        fprintf(stderr, "fcfg_admin_set_load_config fail:%s, ret:%d, %s",
+        fprintf(stderr, "fcfg_admin_set_load_config fail:%s, ret:%d, %s\n",
                 g_fcfg_admin_set_vars.config_file, ret, strerror(ret));
+        log_destroy();
         return ret;
     }
 
 
     if ((ret = conn_pool_connect_server(&g_fcfg_admin_set_vars.join_conn,
-                g_fcfg_admin_set_vars.connect_timeout)) != 0) {
+                    g_fcfg_admin_set_vars.connect_timeout)) != 0) {
+        fprintf(stderr, "conn_pool_connect_server fail: %s:%d, ret:%d, %s\n",
+                g_fcfg_admin_set_vars.join_conn.ip_addr,
+                g_fcfg_admin_set_vars.join_conn.port,
+                ret, strerror(ret));
+        log_destroy();
         return ret;
     }
 
     if ((ret = fcfg_send_admin_join_request(&g_fcfg_admin_set_vars.join_conn,
             g_fcfg_admin_set_vars.network_timeout,
             g_fcfg_admin_set_vars.connect_timeout)) != 0) {
+        log_destroy();
         return ret;
     }
 
@@ -210,4 +223,7 @@ int main (int argc, char **argv)
     if (g_fcfg_admin_set_vars.join_conn.sock >= 0) {
         conn_pool_disconnect_server(&g_fcfg_admin_set_vars.join_conn);
     }
+
+    log_destroy();
+    return 0;
 }

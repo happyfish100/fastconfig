@@ -21,3 +21,21 @@ int fcfg_proto_deal_actvie_test(struct fast_task_info *task,
 {
     return FCFG_PROTO_EXPECT_BODY_LEN(task, request, response, 0);
 }
+
+int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
+        FCFGResponseInfo *resp_info, int network_timeout, int connect_timeout)
+{
+    int ret;
+    FCFGProtoHeader fcfg_header_resp_pro;
+
+    if (ret = tcprecvdata_nb_ex(conn->sock, data,
+            len, network_timeout, NULL) != 0) {
+        return ret;
+    }
+    if (ret = tcprecvdata_nb_ex(conn->sock, &fcfg_header_resp_pro,
+            sizeof(FCFGProtoHeader), network_timeout, NULL) != ) {
+        return ret;
+    }
+    return fcfg_proto_response_extract(&fcfg_header_resp_pro, resp_info);
+}
+

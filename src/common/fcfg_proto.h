@@ -28,9 +28,10 @@
 
 #define FCFG_PROTO_ADD_ENV_REQ        51  //client -> center
 #define FCFG_PROTO_DEL_ENV_REQ        53  //client -> center
+#define FCFG_PROTO_GET_ENV_REQ        55  //client -> center
 
-#define FCFG_PROTO_LIST_ENV_REQ       55  //client -> center
-#define FCFG_PROTO_LIST_ENV_RESP      56  //client -> center
+#define FCFG_PROTO_LIST_ENV_REQ       57  //client -> center
+#define FCFG_PROTO_LIST_ENV_RESP      58  //client -> center
 
 
 typedef struct fcfg_proto_header {
@@ -65,6 +66,84 @@ typedef struct fcfg_proto_push_config_body_part {
 typedef struct fcfg_proto_push_resp {
     char agent_cfg_version[8];
 } FCFGProtoPushResp;
+
+typedef struct fcfg_proto_set_config_req {
+    unsigned char env_len;
+    unsigned char name_len;
+    char value_len[4];
+    char env[0];
+    char *name;    //name = env + env_len
+    char *value;   //value = name + name_len
+} FCFGProtoSetConfigReq;
+
+typedef struct fcfg_proto_del_config_req {
+    unsigned char env_len;
+    unsigned char name_len;
+    char env[0];
+    char *name;    //name = env + env_len
+} FCFGProtoDelConfigReq;
+
+typedef struct fcfg_proto_get_config_req {
+    unsigned char env_len;
+    unsigned char name_len;
+    char env[0];
+    char *name;    //name = env + env_len
+} FCFGProtoGetConfigReq;
+
+typedef struct fcfg_proto_get_config_resp {
+    unsigned char name_len;
+    char value_len[4];
+    char create_time[4];  //unix timestamp
+    char update_time[4];  //unix timestamp
+    char name[0];
+    char *value;   //value = name + name_len
+} FCFGProtoGetConfigResp;
+
+typedef struct fcfg_proto_list_config_req {
+    unsigned char env_len;
+    unsigned char name_len;
+    char start_version[8];
+    char limit[2];
+    char env[0];
+    char *name;    //name = env + env_len
+} FCFGProtoListConfigReq;
+
+typedef struct fcfg_proto_list_config_resp_header {
+    char count[2];  //config count in body
+} FCFGProtoListConfigRespHeader;
+
+typedef FCFGProtoGetConfigResp FCFGProtoListConfigRespBodyPart;
+
+
+typedef struct fcfg_proto_add_env_req {
+    char env[0];
+} FCFGProtoAddEnvReq;
+
+typedef struct fcfg_proto_del_env_req {
+    char env[0];
+} FCFGProtoDelEnvReq;
+
+
+typedef struct fcfg_proto_get_env_req {
+    char env[0];
+} FCFGProtoGetEnvReq;
+
+typedef struct fcfg_proto_get_env_resp {
+    unsigned char env_len;
+    char create_time[4];  //unix timestamp
+    char update_time[4];  //unix timestamp
+    char env[0];
+} FCFGProtoGetEnvResp;
+
+
+typedef struct fcfg_proto_list_env_req {
+} FCFGProtoListEnvReq;
+
+typedef struct fcfg_proto_list_env_resp_header {
+    char count[2];  //env count in body
+} FCFGProtoListEnvRespHeader;
+
+typedef FCFGProtoGetEnvResp FCFGProtoListEnvRespBodyPart;
 
 #ifdef __cplusplus
 extern "C" {

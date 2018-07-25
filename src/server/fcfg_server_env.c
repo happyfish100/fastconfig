@@ -85,17 +85,17 @@ void fcfg_server_env_destroy()
 
 static int fcfg_server_env_compare(const void *p1, const void *p2)
 {
-    return strcmp(((FCFGEnvRecord *)p1)->env, ((FCFGEnvRecord *)p2)->env);
+    return strcmp(((FCFGEnvEntry *)p1)->env.str, ((FCFGEnvEntry *)p2)->env.str);
 }
 
 bool fcfg_server_env_exists(const char *env)
 {
-    FCFGEnvRecord targert;
-    FCFGEnvRecord *found;
+    FCFGEnvEntry targert;
+    FCFGEnvEntry *found;
 
-    targert.env = (char *)env;
-    found = (FCFGEnvRecord *)bsearch(&targert, g_server_global_vars.env_array->records,
-            g_server_global_vars.env_array->count, sizeof(FCFGEnvRecord),
+    targert.env.str = (char *)env;
+    found = (FCFGEnvEntry *)bsearch(&targert, g_server_global_vars.env_array->rows,
+            g_server_global_vars.env_array->count, sizeof(FCFGEnvEntry),
             fcfg_server_env_compare);
     return found != NULL;
 }

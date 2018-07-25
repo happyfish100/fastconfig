@@ -1,6 +1,7 @@
 #ifndef _FCFG_TYPES_H
 #define _FCFG_TYPES_H
 
+#include <time.h>
 #include "fastcommon/common_define.h"
 
 #define FCFG_SERVER_DEFAULT_INNER_PORT  20000
@@ -30,5 +31,30 @@ typedef struct {
     bool response_done;
     unsigned char cmd;   //response command
 } FCFGResponseInfo;
+
+typedef struct fcfg_config_entry {
+    string_t name;
+    string_t value;
+    int64_t version;
+    short status;
+    time_t create_time;  //unix timestamp
+    time_t update_time;  //unix timestamp
+} FCFGConfigEntry;
+
+typedef struct {
+    FCFGConfigEntry *rows;
+    int count;
+} FCFGConfigArray;
+
+typedef struct fcfg_env_entry {
+    string_t env;
+    time_t create_time;  //unix timestamp
+    time_t update_time;  //unix timestamp
+} FCFGEnvEntry;
+
+typedef struct {
+    FCFGEnvEntry *rows;
+    int count;
+} FCFGEnvArray;
 
 #endif

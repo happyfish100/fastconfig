@@ -2,14 +2,7 @@
 #ifndef _FCFG_SERVER_ENV_H
 #define _FCFG_SERVER_ENV_H
 
-typedef struct {
-    char *env;
-} FCFGEnvRecord;
-
-typedef struct {
-    FCFGEnvRecord *records;
-    int count;
-} FCFGEnvArray;
+#include "common/fcfg_types.h"
 
 #ifdef __cplusplus
 extern "C" {

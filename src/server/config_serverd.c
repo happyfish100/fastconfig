@@ -163,31 +163,32 @@ static int test()
     const char *name = "system.server_level";
     const char *value = "5";
     const int64_t version = 64;
+    const int offset = 0;
     const int limit = 5;
 
     if ((result=fcfg_server_dao_init(&context)) != 0) {
         return result;
     }
 
-    result = fcfg_server_dao_set(&context, env, name, value);
-    result = fcfg_server_dao_set(&context, env, name, value);
-    result = fcfg_server_dao_set(&context, env, name, value);
+    result = fcfg_server_dao_set_config(&context, env, name, value);
+    result = fcfg_server_dao_set_config(&context, env, name, value);
+    result = fcfg_server_dao_set_config(&context, env, name, value);
 
-    logInfo("fcfg_server_dao_list_by_env_and_version output:");
-    fcfg_server_dao_list_by_env_and_version(&context,
+    logInfo("fcfg_server_dao_list_config_by_env_and_version output:");
+    fcfg_server_dao_list_config_by_env_and_version(&context,
             env, version, limit, &rows);
     fcfg_server_dao_free_config_array(&rows);
 
     /*
-    logInfo("delete: %d", fcfg_server_dao_delete(&context, env, name));
-    logInfo("delete: %d", fcfg_server_dao_delete(&context, env, name));
-    logInfo("delete: %d", fcfg_server_dao_delete(&context, env, name));
+    logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
+    logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
+    logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
     */
 
-    logInfo("fcfg_server_dao_search output:");
+    logInfo("fcfg_server_dao_search_config output:");
     name = "system%";
-    fcfg_server_dao_search(&context,
-            env, name, limit, &rows);
+    fcfg_server_dao_search_config(&context,
+            env, name, offset, limit, &rows);
     fcfg_server_dao_free_config_array(&rows);
 
     fcfg_server_dao_destroy(&context);

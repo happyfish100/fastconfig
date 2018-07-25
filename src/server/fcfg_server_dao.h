@@ -3,30 +3,25 @@
 #define _FCFG_SERVER_DAO_H
 
 #include <mysql.h>
+#include "fastcommon/common_define.h"
+#include "common/fcfg_types.h"
 #include "fcfg_server_env.h"
 
 typedef struct {
     MYSQL mysql;
-    MYSQL_STMT *update_stmt;
-    MYSQL_STMT *insert_stmt;
-    MYSQL_STMT *delete_stmt;
-    MYSQL_STMT *select_stmt;
-    MYSQL_STMT *search_stmt;
+
+    struct {
+        MYSQL_STMT *update_stmt;
+        MYSQL_STMT *insert_stmt;
+        MYSQL_STMT *delete_stmt;
+        MYSQL_STMT *search_stmt;  //query by env and name for admin
+        MYSQL_STMT *get_pk_stmt;  //get by env and name for admin
+    } admin;
+
+    struct {
+        MYSQL_STMT *select_stmt;  //query by env and version
+    } agent;
 } FCFGMySQLContext;
-
-typedef struct {
-    char *name;
-    char *value;
-    int64_t version;
-    short status;
-    int name_len;
-    int value_len;
-} FCFGConfigRecord;
-
-typedef struct {
-    FCFGConfigRecord *records;
-    int count;
-} FCFGConfigArray;
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,19 +31,22 @@ extern "C" {
 
     void fcfg_server_dao_destroy(FCFGMySQLContext *context);
 
-    int fcfg_server_dao_set(FCFGMySQLContext *context, const char *env,
+    int fcfg_server_dao_set_config(FCFGMySQLContext *context, const char *env,
             const char *name, const char *value);
 
-    int fcfg_server_dao_delete(FCFGMySQLContext *context, const char *env,
+    int fcfg_server_dao_get_config(FCFGMySQLContext *context, const char *env,
+            const char *name, FCFGConfigArray *array);
+
+    int fcfg_server_dao_del_config(FCFGMySQLContext *context, const char *env,
             const char *name);
 
-    int fcfg_server_dao_list_by_env_and_version(FCFGMySQLContext *context,
+    int fcfg_server_dao_list_config_by_env_and_version(FCFGMySQLContext *context,
             const char *env, const int64_t version, const int limit,
             FCFGConfigArray *array);
 
-    int fcfg_server_dao_search(FCFGMySQLContext *context,
-            const char *env, const char *name, const int limit,
-            FCFGConfigArray *array);
+    int fcfg_server_dao_search_config(FCFGMySQLContext *context,
+            const char *env, const char *name, const int offset,
+            const int limit, FCFGConfigArray *array);
 
     void fcfg_server_dao_free_config_array(FCFGConfigArray *array);
 

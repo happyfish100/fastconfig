@@ -62,14 +62,15 @@ typedef struct fcfg_proto_push_config_body_part {
     unsigned char name_len;
     char value_len[4];
     char version[8];
-    char name[0];
+    char create_time[4];  //unix timestamp
+    char update_time[4];  //unix timestamp
     char *value;   //value = name + name_len
+    char name[0];
 } FCFGProtoPushConfigBodyPart;
 
 typedef struct fcfg_proto_push_resp {
     char agent_cfg_version[8];
 } FCFGProtoPushResp;
-
 
 typedef struct fcfg_proto_admin_join_req {
     unsigned char username_len;
@@ -101,20 +102,15 @@ typedef struct fcfg_proto_get_config_req {
     char env[0];
 } FCFGProtoGetConfigReq;
 
-typedef struct fcfg_proto_get_config_resp {
-    unsigned char name_len;
-    char value_len[4];
-    char create_time[4];  //unix timestamp
-    char update_time[4];  //unix timestamp
-    char *value;   //value = name + name_len
-    char name[0];
-} FCFGProtoGetConfigResp;
+typedef FCFGProtoPushConfigBodyPart FCFGProtoGetConfigResp;
 
 typedef struct fcfg_proto_list_config_req {
     unsigned char env_len;
     unsigned char name_len;
-    char start_version[8];
-    char limit[2];
+    struct {
+        char offset[2];
+        char count[2];
+    } limit;  //mysql limit
     char *name;    //name = env + env_len
     char env[0];
 } FCFGProtoListConfigReq;

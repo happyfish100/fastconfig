@@ -65,7 +65,7 @@ static int fcfg_agent_set_config_version(int64_t version)
 
 static int fcfg_agent_get_config_version()
 {
-    char buff[64];
+    char buff[FCFG_CONFIG_ENV_SIZE];
     int ret;
     int64_t version;
     struct shmcache_value_info value;
@@ -250,13 +250,13 @@ int fcfg_agent_join ()
 
     version = fcfg_agent_get_config_version();
 
-    while (true) {
+    while (g_sf_global_vars.continue_flag) {
         if (g_agent_global_vars.join_conn.sock >= 0) {
             conn_pool_disconnect_server(&g_agent_global_vars.join_conn);
         }
         ret = conn_pool_connect_server(&g_agent_global_vars.join_conn, g_sf_global_vars.connect_timeout);
         if (ret) {
-            lerr ("conn_pool_connect_server fail:%d, %s", ret, strerror(ret));
+            lerr ("join server conn_pool_connect_server fail:%d, %s", ret, strerror(ret));
             sleep(1);
             continue;
         }
@@ -265,14 +265,14 @@ int fcfg_agent_join ()
         ret = tcpsenddata_nb(g_agent_global_vars.join_conn.sock, buff,
                 sizeof(FCFGProtoHeader) + sizeof(FCFGProtoJoinReq), g_sf_global_vars.network_timeout);
         if (ret) {
-            lerr("tcpsenddata_nb fail.:%d, %s\n", ret, strerror(ret));
+            lerr("join server tcpsenddata_nb fail.:%d, %s\n", ret, strerror(ret));
             sleep(1);
             continue;
         }
         ret = tcprecvdata_nb_ex(g_agent_global_vars.join_conn.sock, &fcfg_header_resp_pro,
-                sizeof(FCFGProtoJoinReq), g_sf_global_vars.network_timeout, NULL);
+                sizeof(FCFGProtoHeader), g_sf_global_vars.network_timeout, NULL);
         if (ret) {
-            lerr("tcprecvdata_nb_ex fail.:%d, %s\n", ret, strerror(ret));
+            lerr("join server tcprecvdata_nb_ex fail.:%d, %s\n", ret, strerror(ret));
             sleep(1);
             continue;
         }
@@ -293,14 +293,15 @@ int fcfg_agent_join ()
                 ret = tcprecvdata_nb_ex(g_agent_global_vars.join_conn.sock, buff,
                         resp_info.body_len, g_sf_global_vars.network_timeout, NULL);
                 if (ret) {
-                    lerr("tcprecvdata_nb_ex fail.err:%d, err info:%s\n",
+                    lerr("join server tcprecvdata_nb_ex fail.err:%d, err info:%s\n",
                             ret, strerror(ret));
                     sleep(1);
                     continue;
                 } else {
                     fcfg_extract_join_resp(&join_resp_data,
                             (FCFGProtoJoinResp *)buff);
-                    linfo("join server. resp version:%"PRId64, join_resp_data.center_cfg_version);
+                    linfo("join server success. current version: %"PRId64", resp version: %"PRId64,
+                            version, join_resp_data.center_cfg_version);
                     conn_pool_disconnect_server(&g_agent_global_vars.join_conn);
                     if (join_resp_data.center_cfg_version < version) {
                         ret = shmcache_clear(&g_agent_global_vars.shm_context);
@@ -313,7 +314,7 @@ int fcfg_agent_join ()
                     break;
                 }
             } else {
-                lerr("resp_info.body_len is 0");
+                lerr("join server resp_info.body_len is 0");
                 sleep(1);
                 continue;
             }

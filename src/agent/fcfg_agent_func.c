@@ -93,7 +93,7 @@ int fcfg_proto_set_join_req(char *buff, char *env, int64_t version)
     int2buff(sizeof(FCFGProtoJoinReq), fcfg_header_pro->body_len);
 
     fcfg_join_req_pro = (FCFGProtoJoinReq *)(buff + sizeof(FCFGProtoHeader));
-    strncpy(fcfg_join_req_pro->env, env, sizeof(fcfg_join_req_pro->env));
+    memcpy(fcfg_join_req_pro->env, env, sizeof(fcfg_join_req_pro->env));
     long2buff(version, fcfg_join_req_pro->agent_cfg_version);
 
     return 0;
@@ -133,6 +133,9 @@ int fcfg_check_push_config_body_len(FCFGPushConfigHeader *fcfg_push_header,
         if (body_part_len > len) {
             return -1;
         }
+        fcfg_push_body_pro = (FCFGProtoPushConfigBodyPart *)(((char *)fcfg_push_body_pro) + size +
+                name_len +
+                value_len);
     }
 
     if (body_part_len != len) {

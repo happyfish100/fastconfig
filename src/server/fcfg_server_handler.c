@@ -45,21 +45,21 @@ void fcfg_server_task_finish_cleanup(struct fast_task_info *task)
 static int fcfg_proto_deal_join(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response)
 {
-    FCFGProtoJoinReq *join_req;
-    FCFGProtoJoinResp *join_resp;
+    FCFGProtoAgentJoinReq *join_req;
+    FCFGProtoAgentJoinResp *join_resp;
     char env[FCFG_CONFIG_ENV_SIZE];
     int result;
     int64_t agent_cfg_version;
     int64_t center_cfg_version = 0;  //TODO
 
     if ((result=FCFG_PROTO_EXPECT_BODY_LEN(task, request, response,
-                    sizeof(FCFGProtoJoinReq))) != 0)
+                    sizeof(FCFGProtoAgentJoinReq))) != 0)
     {
         return result;
     }
 
     memset(env, 0, sizeof(env));
-    join_req = (FCFGProtoJoinReq *)(task->data + sizeof(FCFGProtoHeader));
+    join_req = (FCFGProtoAgentJoinReq *)(task->data + sizeof(FCFGProtoHeader));
     memcpy(env, join_req->env, sizeof(join_req->env));
     if (!fcfg_server_env_exists(env)) {
         response->error.length = sprintf(response->error.message,
@@ -75,11 +75,11 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     agent_cfg_version = buff2long(join_req->agent_cfg_version);
     logInfo("agent_cfg_version: %"PRId64, agent_cfg_version);
 
-    join_resp = (FCFGProtoJoinResp *)(task->data + sizeof(FCFGProtoHeader));
+    join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
     long2buff(center_cfg_version, join_resp->center_cfg_version);
 
     response->body_len = 8;
-    response->cmd = FCFG_PROTO_JION_RESP;
+    response->cmd = FCFG_PROTO_AGENT_JION_RESP;
     response->response_done = true;
     return 0;
 }
@@ -132,7 +132,7 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                 response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
                 result = fcfg_proto_deal_actvie_test(task, &request, &response);
                 break;
-            case FCFG_PROTO_JION_REQ:
+            case FCFG_PROTO_AGENT_JION_REQ:
                 result = fcfg_proto_deal_join(task, &request, &response);
                 break;
             case FCFG_PROTO_ADD_ENV_REQ:

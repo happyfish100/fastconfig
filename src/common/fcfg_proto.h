@@ -13,25 +13,28 @@
 #define FCFG_PROTO_ACTIVE_TEST_REQ    35   //center -> agent
 #define FCFG_PROTO_ACTIVE_TEST_RESP   36
 
-#define FCFG_PROTO_JION_REQ           37   //agent -> center
-#define FCFG_PROTO_JION_RESP          38
+#define FCFG_PROTO_AGENT_JION_REQ     37   //agent -> center
+#define FCFG_PROTO_AGENT_JION_RESP    38
 
 #define FCFG_PROTO_PUSH_CONFIG        39   //center -> agent
 #define FCFG_PROTO_PUSH_RESP          40
 
-#define FCFG_PROTO_SET_CONFIG_REQ     41  //client -> center
-#define FCFG_PROTO_DEL_CONFIG_REQ     43  //client -> center
-#define FCFG_PROTO_GET_CONFIG_REQ     45  //client -> center
 
-#define FCFG_PROTO_LIST_CONFIG_REQ    47  //client -> center
-#define FCFG_PROTO_LIST_CONFIG_RESP   48
+#define FCFG_PROTO_ADMIN_JION_REQ     41  //amdin -> center
 
-#define FCFG_PROTO_ADD_ENV_REQ        51  //client -> center
-#define FCFG_PROTO_DEL_ENV_REQ        53  //client -> center
-#define FCFG_PROTO_GET_ENV_REQ        55  //client -> center
+#define FCFG_PROTO_SET_CONFIG_REQ     43  //admin -> center
+#define FCFG_PROTO_DEL_CONFIG_REQ     45  //admin -> center
+#define FCFG_PROTO_GET_CONFIG_REQ     47  //admin -> center
 
-#define FCFG_PROTO_LIST_ENV_REQ       57  //client -> center
-#define FCFG_PROTO_LIST_ENV_RESP      58  //client -> center
+#define FCFG_PROTO_LIST_CONFIG_REQ    49  //admin -> center
+#define FCFG_PROTO_LIST_CONFIG_RESP   50
+
+#define FCFG_PROTO_ADD_ENV_REQ        51  //admin -> center
+#define FCFG_PROTO_DEL_ENV_REQ        53  //admin -> center
+#define FCFG_PROTO_GET_ENV_REQ        55  //admin -> center
+
+#define FCFG_PROTO_LIST_ENV_REQ       57  //admin -> center
+#define FCFG_PROTO_LIST_ENV_RESP      58
 
 
 typedef struct fcfg_proto_header {
@@ -41,14 +44,14 @@ typedef struct fcfg_proto_header {
     char padding[2];
 } FCFGProtoHeader;
 
-typedef struct fcfg_proto_join_req {
+typedef struct fcfg_proto_agent_join_req {
     char env[64];
     char agent_cfg_version[8];
-} FCFGProtoJoinReq;
+} FCFGProtoAgentJoinReq;
 
-typedef struct fcfg_proto_join_resp {
+typedef struct fcfg_proto_agent_join_resp {
     char center_cfg_version[8];
-} FCFGProtoJoinResp;
+} FCFGProtoAgentJoinResp;
 
 typedef struct fcfg_proto_push_config_header {
     char count[2];  //config count in body
@@ -67,6 +70,14 @@ typedef struct fcfg_proto_push_resp {
     char agent_cfg_version[8];
 } FCFGProtoPushResp;
 
+
+typedef struct fcfg_proto_admin_join_req {
+    unsigned char username_len;
+    unsigned char secret_key_len;
+    char *secret_key;   //secret_key = username + username_len
+    char username[0];
+} FCFGProtoAdminJoinReq;
+
 typedef struct fcfg_proto_set_config_req {
     unsigned char env_len;
     unsigned char name_len;
@@ -79,15 +90,15 @@ typedef struct fcfg_proto_set_config_req {
 typedef struct fcfg_proto_del_config_req {
     unsigned char env_len;
     unsigned char name_len;
-    char env[0];
     char *name;    //name = env + env_len
+    char env[0];
 } FCFGProtoDelConfigReq;
 
 typedef struct fcfg_proto_get_config_req {
     unsigned char env_len;
     unsigned char name_len;
-    char env[0];
     char *name;    //name = env + env_len
+    char env[0];
 } FCFGProtoGetConfigReq;
 
 typedef struct fcfg_proto_get_config_resp {
@@ -95,8 +106,8 @@ typedef struct fcfg_proto_get_config_resp {
     char value_len[4];
     char create_time[4];  //unix timestamp
     char update_time[4];  //unix timestamp
-    char name[0];
     char *value;   //value = name + name_len
+    char name[0];
 } FCFGProtoGetConfigResp;
 
 typedef struct fcfg_proto_list_config_req {
@@ -104,8 +115,8 @@ typedef struct fcfg_proto_list_config_req {
     unsigned char name_len;
     char start_version[8];
     char limit[2];
-    char env[0];
     char *name;    //name = env + env_len
+    char env[0];
 } FCFGProtoListConfigReq;
 
 typedef struct fcfg_proto_list_config_resp_header {

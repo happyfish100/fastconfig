@@ -263,7 +263,7 @@ int fcfg_agent_join ()
         fcfg_proto_set_join_req(buff, g_agent_global_vars.env, version);
 
         ret = tcpsenddata_nb(g_agent_global_vars.join_conn.sock, buff,
-                sizeof(FCFGProtoHeader) + sizeof(FCFGProtoJoinReq), g_sf_global_vars.network_timeout);
+                sizeof(FCFGProtoHeader) + sizeof(FCFGProtoAgentJoinReq), g_sf_global_vars.network_timeout);
         if (ret) {
             lerr("join server tcpsenddata_nb fail.:%d, %s\n", ret, strerror(ret));
             sleep(1);
@@ -277,7 +277,7 @@ int fcfg_agent_join ()
             continue;
         }
         fcfg_proto_response_extract(&fcfg_header_resp_pro, &resp_info);
-        if (resp_info.cmd != FCFG_PROTO_JION_RESP) {
+        if (resp_info.cmd != FCFG_PROTO_AGENT_JOIN_RESP) {
             if (resp_info.body_len) {
                 ret = tcprecvdata_nb_ex(g_agent_global_vars.join_conn.sock, resp_info.error.message,
                         resp_info.body_len, g_sf_global_vars.network_timeout, NULL);
@@ -299,7 +299,7 @@ int fcfg_agent_join ()
                     continue;
                 } else {
                     fcfg_extract_join_resp(&join_resp_data,
-                            (FCFGProtoJoinResp *)buff);
+                            (FCFGProtoAgentJoinResp *)buff);
                     linfo("join server success. current version: %"PRId64", resp version: %"PRId64,
                             version, join_resp_data.center_cfg_version);
                     conn_pool_disconnect_server(&g_agent_global_vars.join_conn);

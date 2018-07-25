@@ -86,13 +86,13 @@ int fcfg_agent_load_config(const char *filename)
 int fcfg_proto_set_join_req(char *buff, char *env, int64_t version)
 {
     FCFGProtoHeader *fcfg_header_pro;
-    FCFGProtoJoinReq *fcfg_join_req_pro;
+    FCFGProtoAgentJoinReq *fcfg_join_req_pro;
 
     fcfg_header_pro = (FCFGProtoHeader *)buff;
-    fcfg_header_pro->cmd = FCFG_PROTO_JION_REQ;
-    int2buff(sizeof(FCFGProtoJoinReq), fcfg_header_pro->body_len);
+    fcfg_header_pro->cmd = FCFG_PROTO_AGENT_JOIN_REQ;
+    int2buff(sizeof(FCFGProtoAgentJoinReq), fcfg_header_pro->body_len);
 
-    fcfg_join_req_pro = (FCFGProtoJoinReq *)(buff + sizeof(FCFGProtoHeader));
+    fcfg_join_req_pro = (FCFGProtoAgentJoinReq *)(buff + sizeof(FCFGProtoHeader));
     memcpy(fcfg_join_req_pro->env, env, sizeof(fcfg_join_req_pro->env));
     long2buff(version, fcfg_join_req_pro->agent_cfg_version);
 
@@ -100,7 +100,7 @@ int fcfg_proto_set_join_req(char *buff, char *env, int64_t version)
 }
 
 int fcfg_extract_join_resp(FCFGJoinResp *join_resp_data,
-        FCFGProtoJoinResp *join_resp_pro)
+        FCFGProtoAgentJoinResp *join_resp_pro)
 {
     join_resp_data->center_cfg_version = buff2long(join_resp_pro->center_cfg_version);
 

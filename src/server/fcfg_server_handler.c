@@ -79,7 +79,7 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     long2buff(center_cfg_version, join_resp->center_cfg_version);
 
     response->body_len = 8;
-    response->cmd = FCFG_PROTO_AGENT_JION_RESP;
+    response->cmd = FCFG_PROTO_AGENT_JOIN_RESP;
     response->response_done = true;
     return 0;
 }
@@ -132,7 +132,7 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                 response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
                 result = fcfg_proto_deal_actvie_test(task, &request, &response);
                 break;
-            case FCFG_PROTO_AGENT_JION_REQ:
+            case FCFG_PROTO_AGENT_JOIN_REQ:
                 result = fcfg_proto_deal_join(task, &request, &response);
                 break;
             case FCFG_PROTO_ADD_ENV_REQ:

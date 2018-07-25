@@ -13,14 +13,14 @@
 #define FCFG_PROTO_ACTIVE_TEST_REQ    35   //center -> agent
 #define FCFG_PROTO_ACTIVE_TEST_RESP   36
 
-#define FCFG_PROTO_AGENT_JION_REQ     37   //agent -> center
-#define FCFG_PROTO_AGENT_JION_RESP    38
+#define FCFG_PROTO_AGENT_JOIN_REQ     37   //agent -> center
+#define FCFG_PROTO_AGENT_JOIN_RESP    38
 
 #define FCFG_PROTO_PUSH_CONFIG        39   //center -> agent
 #define FCFG_PROTO_PUSH_RESP          40
 
 
-#define FCFG_PROTO_ADMIN_JION_REQ     41  //amdin -> center
+#define FCFG_PROTO_ADMIN_JOIN_REQ     41  //amdin -> center
 
 #define FCFG_PROTO_SET_CONFIG_REQ     43  //admin -> center
 #define FCFG_PROTO_DEL_CONFIG_REQ     45  //admin -> center

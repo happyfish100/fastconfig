@@ -12,7 +12,7 @@ int fcfg_agent_load_config(const char *filename);
 int fcfg_proto_set_join_req(char *buff, char *env,
         int64_t version);
 int fcfg_extract_join_resp(FCFGJoinResp *join_resp_data,
-        FCFGProtoJoinResp *join_resp_pro);
+        FCFGProtoAgentJoinResp *join_resp_pro);
 int fcfg_extract_push_config_header(
         FCFGProtoPushConfigHeader *fcfg_push_header_pro,
         FCFGPushConfigHeader *fcfg_push_header);

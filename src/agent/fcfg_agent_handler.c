@@ -117,12 +117,13 @@ static int fcfg_do_task_push_config(struct fast_task_info *task,
     size = sizeof(FCFGPushConfigBodyPart);
     for (i = 0; i < fcfg_push_header.count; i++) {
         fcfg_extract_push_config_body_data(fcfg_push_body_pro, &fcfg_push_body_data);
-        key.data = fcfg_push_body_pro->name;
-        key.length = fcfg_push_body_data.name_len;
-        value.data = fcfg_push_body_pro->name + fcfg_push_body_data.name_len;
+        value.data = fcfg_push_body_pro->value;
         value.length = fcfg_push_body_data.value_len;
         value.options = SHMCACHE_SERIALIZER_STRING;
         value.expires = SHMCACHE_NEVER_EXPIRED;
+        key.data = fcfg_push_body_pro->value + fcfg_push_body_data.value_len;
+        key.length = fcfg_push_body_data.name_len;
+
         if (fcfg_push_body_data.status == FCFG_CONFIG_STATUS_NORMAL) {
             ret = shmcache_set_ex(&g_agent_global_vars.shm_context, &key, &value);
         } else {

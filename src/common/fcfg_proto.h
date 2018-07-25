@@ -163,6 +163,12 @@ int fcfg_proto_set_body_length(struct fast_task_info *task);
 int fcfg_proto_deal_actvie_test(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response);
 
+int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
+        FCFGResponseInfo *resp_info, int network_timeout, int connect_timeout);
+
+void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
+        FCFGResponseInfo *resp_info);
+
 static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
         const int expect_body_length, const char *filename, const int line)

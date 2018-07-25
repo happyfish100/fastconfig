@@ -3,7 +3,9 @@
 
 typedef struct fcfg_admin_set_config {
     ConnectionInfo join_conn;
-    char *config_filename;
+    int network_timeout;
+    int connect_timeout;
+    char *config_file;
     char *config_env;
     char *config_name;
     char *config_value;
@@ -12,6 +14,8 @@ typedef struct fcfg_admin_set_config {
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define FCFG_NETWORK_TIMEOUT_DEFAULT    30
+#define FCFG_CONNECT_TIMEOUT_DEFAULT    30
 
 extern FCFGAdminSetGlobal g_fcfg_admin_set_vars;
 

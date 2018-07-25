@@ -1,10 +1,15 @@
+#include "common/fcfg_proto.h"
+#include "fcfg_admin_func.h"
+#include "fastcommon/sockopt.h"
+
+FCFGAdminGlobal g_fcfg_admin_vars;
 void fcfg_set_admin_join_req(FCFGProtoAdminJoinReq *fcfg_admin_join_req_proto,
         int *body_len)
 {
     fcfg_admin_join_req_proto->username_len =
         strlen(g_fcfg_admin_vars.username);
     fcfg_admin_join_req_proto->secret_key_len =
-        strlen(g_fcfg_admin_vars.secret_key_len);
+        strlen(g_fcfg_admin_vars.secret_key);
     memcpy(fcfg_admin_join_req_proto->secret_key, g_fcfg_admin_vars.secret_key,
             fcfg_admin_join_req_proto->secret_key_len);
     memcpy(fcfg_admin_join_req_proto->secret_key + fcfg_admin_join_req_proto->secret_key_len,
@@ -16,11 +21,22 @@ void fcfg_set_admin_join_req(FCFGProtoAdminJoinReq *fcfg_admin_join_req_proto,
                fcfg_admin_join_req_proto->username_len;
 }
 
-void fcfg_set_admin_header (FCFGProtoHeader *fcfg_header_proto,
-        unsigned char cmd, int body_len)
+int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
+        FCFGResponseInfo *resp_info, int network_timeout, int connect_timeout)
 {
-    fcfg_header_proto->cmd = cmd;
-    int2buff(body_len, fcfg_header_proto->body_len);
+    int ret;
+    FCFGProtoHeader fcfg_header_resp_pro;
+
+    if ((ret = tcprecvdata_nb_ex(conn->sock, data,
+            len, network_timeout, NULL)) != 0) {
+        return ret;
+    }
+    if ((ret = tcprecvdata_nb_ex(conn->sock, &fcfg_header_resp_pro,
+            sizeof(FCFGProtoHeader), network_timeout, NULL)) != 0) {
+        return ret;
+    }
+    fcfg_proto_response_extract(&fcfg_header_resp_pro, resp_info);
+    return 0;
 }
 
 int fcfg_admin_check_response(ConnectionInfo *join_conn,

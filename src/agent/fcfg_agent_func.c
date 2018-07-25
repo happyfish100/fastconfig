@@ -156,10 +156,4 @@ int fcfg_extract_push_config_body_data (
 
     return 0;
 }
-void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
-        FCFGResponseInfo *resp_info)
-{
-    resp_info->cmd      = header_pro->cmd;
-    resp_info->body_len = buff2int(header_pro->body_len);
-    resp_info->status   = header_pro->status;
-}
+

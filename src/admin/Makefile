@@ -8,7 +8,7 @@ CONFIG_PATH = $(TARGET_CONF_PATH)
 
 ALL_OBJS = ../common/fcfg_proto.o fcfg_admin_func.o
 
-ALL_PRGS = fcfg_admin_set_config
+ALL_PRGS = fcfg_admin_set_config fcfg_admin_del_config fcfg_admin_add_env fcfg_admin_del_env
 
 all: $(ALL_PRGS)
 

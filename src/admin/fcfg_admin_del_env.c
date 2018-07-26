@@ -13,18 +13,16 @@
 #include <netinet/in.h>
 #include "common/fcfg_proto.h"
 #include "fcfg_admin_func.h"
-#include "fcfg_admin_set_config.h"
+#include "fcfg_admin_del_env.h"
 
 static bool show_usage = false;
-FCFGAdminSetGlobal g_fcfg_admin_set_vars;
+FCFGAdminDelEnvGlobal g_fcfg_admin_del_env;
 static void usage(char *program)
 {
     fprintf(stderr, "Usage: %s options, the options as:\n"
             "\t -h help\n"
             "\t -c <config-filename>\n"
             "\t -e <config-env>\n"
-            "\t -n <config-name>\n"
-            "\t -v <config-value>\n"
             "\n", program);
 }
 
@@ -33,20 +31,14 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:n:v:")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
-                g_fcfg_admin_set_vars.config_file = optarg;
+                g_fcfg_admin_del_env.config_file = optarg;
                 break;
             case 'e':
-                g_fcfg_admin_set_vars.config_env = optarg;
-                break;
-            case 'n':
-                g_fcfg_admin_set_vars.config_name = optarg;
-                break;
-            case 'v':
-                g_fcfg_admin_set_vars.config_value = optarg;
+                g_fcfg_admin_del_env.config_env = optarg;
                 break;
             case 'h':
             default:
@@ -59,27 +51,16 @@ static void parse_args(int argc, char **argv)
     }
 }
 
-void fcfg_set_admin_set_config(char *buff,
+void fcfg_set_admin_del_env(char *buff,
         int *body_len)
 {
-    unsigned char env_len = strlen(g_fcfg_admin_set_vars.config_env);
-    unsigned char name_len = strlen(g_fcfg_admin_set_vars.config_name);
-    int value_len = strlen(g_fcfg_admin_set_vars.config_value);
-    *buff = env_len;
-    *(buff + 1) = name_len;
-    int2buff(value_len, buff + 2);
-    memcpy(buff + 6, g_fcfg_admin_set_vars.config_env,
+    unsigned char env_len = strlen(g_fcfg_admin_del_env.config_env);
+    memcpy(buff, g_fcfg_admin_del_env.config_env,
            env_len);
-    memcpy(buff + 6 + env_len,
-           g_fcfg_admin_set_vars.config_name,
-           name_len);
-    memcpy(buff + 6 + env_len + name_len,
-           g_fcfg_admin_set_vars.config_value,
-           value_len);
-    *body_len = 6 + env_len + name_len + value_len;
+    *body_len = env_len;
 }
 
-int fcfg_admin_set_config ()
+int fcfg_admin_del_env ()
 {
     int ret;
     char buff[1024];
@@ -89,8 +70,8 @@ int fcfg_admin_set_config ()
     FCFGProtoHeader *fcfg_header_proto;
 
     fcfg_header_proto = (FCFGProtoHeader *)buff;
-    fcfg_set_admin_set_config(buff + sizeof(FCFGProtoHeader), &body_len);
-    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_SET_CONFIG_REQ, body_len);
+    fcfg_set_admin_del_env(buff + sizeof(FCFGProtoHeader), &body_len);
+    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_ADD_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(&g_fcfg_admin_vars.join_conn, buff, size, &resp_info,
             g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
@@ -101,10 +82,10 @@ int fcfg_admin_set_config ()
     }
     ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info, g_fcfg_admin_vars.network_timeout);
     if (ret) {
-        fprintf(stderr, "set config fail.err info: %s\n",
+        fprintf(stderr, "del env fail.err info: %s\n",
                 resp_info.error.message);
     } else {
-        fprintf(stderr, "set config success !\n");
+        fprintf(stderr, "del env success !\n");
     }
 
     return ret;
@@ -114,7 +95,7 @@ int main (int argc, char **argv)
 {
     int ret;
 
-    if (argc < 9) {
+    if (argc < 5) {
         usage(argv[0]);
         return 1;
     }
@@ -126,10 +107,10 @@ int main (int argc, char **argv)
 
     log_init2();
 
-    ret = fcfg_admin_load_config(g_fcfg_admin_set_vars.config_file);
+    ret = fcfg_admin_load_config(g_fcfg_admin_del_env.config_file);
     if (ret) {
         fprintf(stderr, "fcfg_admin_load_config fail:%s, ret:%d, %s\n",
-                g_fcfg_admin_set_vars.config_file, ret, strerror(ret));
+                g_fcfg_admin_del_env.config_file, ret, strerror(ret));
         log_destroy();
         return ret;
     }
@@ -152,7 +133,7 @@ int main (int argc, char **argv)
         return ret;
     }
 
-    ret = fcfg_admin_set_config();
+    ret = fcfg_admin_del_env();
     if (g_fcfg_admin_vars.join_conn.sock >= 0) {
         conn_pool_disconnect_server(&g_fcfg_admin_vars.join_conn);
     }
@@ -160,3 +141,4 @@ int main (int argc, char **argv)
     log_destroy();
     return 0;
 }
+

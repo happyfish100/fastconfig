@@ -435,7 +435,7 @@ static int fcfg_server_dao_store_rows(MYSQL_STMT *stmt, FCFGConfigArray *array)
             fcfg_server_dao_free_config_array(array);
             return ENOMEM;
         }
-        current->value.str = current->name.str + buffer.name_len;
+        current->value.str = current->name.str + buffer.name_len + 1;
         memcpy(current->name.str, buffer.name, buffer.name_len + 1);
         memcpy(current->value.str, buffer.value, buffer.value_len + 1);
         current->version = buffer.version;

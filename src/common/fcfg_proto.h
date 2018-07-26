@@ -169,6 +169,8 @@ int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
 void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
         FCFGResponseInfo *resp_info);
 
+void fcfg_free_config_array(FCFGConfigArray *array);
+
 static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
         const int expect_body_length, const char *filename, const int line)
@@ -240,6 +242,9 @@ static inline int fcfg_proto_check_body_length(struct fast_task_info *task,
     return fcfg_proto_check_max_body_length(task, request, response,
             max_body_length, filename, line);
 }
+
+#define offset_of_member(struct_type, member) \
+    ((int)(&(((struct_type *)0)->member)))
 
 #define FCFG_PROTO_EXPECT_BODY_LEN(task, request, response, expect_length) \
     fcfg_proto_expect_body_length(task, request, response, expect_length, __FILE__, __LINE__)

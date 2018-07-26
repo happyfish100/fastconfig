@@ -2,13 +2,14 @@
 
 COMPILE = $(CC)  -Wall -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -g -O0 -DDEBUG_FLAG
 INC_PATH = -I.. -I/usr/local/include
-LIB_PATH = -lfastcommon 
+LIB_PATH = -L/usr/local/lib -lfastcommon -lpthread
 TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 
 ALL_OBJS = ../common/fcfg_proto.o fcfg_admin_func.o
 
-ALL_PRGS = fcfg_admin_set_config fcfg_admin_del_config fcfg_admin_add_env fcfg_admin_del_env
+ALL_PRGS = fcfg_admin_set_config fcfg_admin_del_config fcfg_admin_add_env \
+           fcfg_admin_del_env fcfg_admin_get_config
 
 all: $(ALL_PRGS)
 

@@ -36,3 +36,24 @@ void fcfg_set_admin_header (FCFGProtoHeader *fcfg_header_proto,
     fcfg_header_proto->cmd = cmd;
     int2buff(body_len, fcfg_header_proto->body_len);
 }
+
+void fcfg_free_config_array(FCFGConfigArray *array)
+{
+    FCFGConfigEntry *current;
+    FCFGConfigEntry *end;
+
+    if (array->rows == NULL) {
+        return;
+    }
+
+    end = array->rows + array->count;
+    for (current=array->rows; current<end; current++) {
+        if (current->name.str != NULL) {
+            free(current->name.str);
+        }
+    }
+
+    free(array->rows);
+    array->rows = NULL;
+    array->count = 0;
+}

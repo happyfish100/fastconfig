@@ -7,7 +7,7 @@
 #include "common/fcfg_types.h"
 #include "fcfg_server_env.h"
 
-typedef struct {
+typedef struct fcfg_mysql_context {
     MYSQL mysql;
 
     struct {
@@ -17,6 +17,11 @@ typedef struct {
         MYSQL_STMT *search_stmt;  //query by env and name for admin
         MYSQL_STMT *get_pk_stmt;  //get by env and name for admin
     } admin;
+
+    struct {
+        MYSQL_STMT *max_env_ver_stmt; //query max env version
+        MYSQL_STMT *max_cfg_ver_stmt; //query max cohfig version
+    } monitor;
 
     struct {
         MYSQL_STMT *select_stmt;  //query by env and version
@@ -50,6 +55,9 @@ extern "C" {
 
     void fcfg_server_dao_free_config_array(FCFGConfigArray *array);
 
+    int fcfg_server_dao_max_config_version(FCFGMySQLContext *context,
+            int64_t *max_version);
+
     int fcfg_server_dao_add_env(FCFGMySQLContext *context, const char *env);
 
     int fcfg_server_dao_del_env(FCFGMySQLContext *context, const char *env);
@@ -57,6 +65,9 @@ extern "C" {
     int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array);
 
     void fcfg_server_dao_free_env_array(FCFGEnvArray *array);
+
+    int fcfg_server_dao_max_env_version(FCFGMySQLContext *context,
+            int64_t *max_version);
 
 #ifdef __cplusplus
 }

@@ -8,7 +8,7 @@
 #include "fcfg_server_dao.h"
 #include "fcfg_server_env.h"
 
-int fcfg_server_env_free_func(void *args)
+static int fcfg_server_env_free_func(void *args)
 {
     FCFGEnvArray *array;
     if (args == NULL) {
@@ -43,7 +43,7 @@ static int fcfg_server_env_array_set(FCFGEnvArray *new_array)
     return 0;
 }
 
-int fcfg_server_env_load(FCFGMySQLContext *context)
+int fcfg_server_env_load(struct fcfg_mysql_context *context)
 {
     FCFGEnvArray *new_array;
     int result;

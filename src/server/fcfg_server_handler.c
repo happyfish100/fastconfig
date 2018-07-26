@@ -40,6 +40,9 @@ int fcfg_server_handler_destroy()
 void fcfg_server_task_finish_cleanup(struct fast_task_info *task)
 {
     sf_task_finish_clean_up(task);
+
+    __sync_add_and_fetch(&((FCFGServerTaskArg *)task->arg)->task_version, 1);
+    logInfo("task_version: %"PRId64, ((FCFGServerTaskArg *)task->arg)->task_version);
 }
 
 static int fcfg_proto_deal_join(struct fast_task_info *task,
@@ -75,6 +78,8 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     agent_cfg_version = buff2long(join_req->agent_cfg_version);
     logInfo("agent_cfg_version: %"PRId64, agent_cfg_version);
 
+    ((FCFGServerTaskArg *)task->arg)->agent_cfg_version = agent_cfg_version;
+
     join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
     long2buff(center_cfg_version, join_resp->center_cfg_version);
 
@@ -97,7 +102,7 @@ static int fcfg_proto_deal_add_del_env(struct fast_task_info *task,
         return result;
     }
 
-    mysql_context = &((FCFGServerContext *)task->arg)->mysql_context;
+    mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
     env = task->data + sizeof(FCFGProtoHeader);
     *(env + request->body_len) = '\0';
     if (request->cmd == FCFG_PROTO_ADD_ENV_REQ) {
@@ -199,6 +204,6 @@ void *fcfg_server_alloc_thread_extra_data(const int thread_index)
 
     memset(thread_extra_data, 0, sizeof(FCFGServerContext));
     fcfg_server_dao_init(&thread_extra_data->mysql_context);
-
+    common_blocked_queue_init_ex(&thread_extra_data->push_queue, 4096);
     return thread_extra_data;
 }

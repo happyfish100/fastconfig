@@ -50,6 +50,8 @@ int fcfg_server_dao_init(FCFGMySQLContext *context)
         "WHERE env = ? AND name like ? and status = 0 ORDER BY name limit ?, ?";
     const char *get_pk_sql = CONFIG_SELECT_SQL
         "WHERE env = ? AND name = ? and status = 0";
+    const char *max_env_ver_sql = "SELECT MAX(version) FROM fast_environment";
+    const char *max_cfg_ver_sql = "SELECT MAX(version) FROM fast_config";
 
     mysql_init(&context->mysql);
     FCFG_MYSQL_STMT_INIT(context->admin.update_stmt, &context->mysql);
@@ -58,6 +60,8 @@ int fcfg_server_dao_init(FCFGMySQLContext *context)
     FCFG_MYSQL_STMT_INIT(context->agent.select_stmt, &context->mysql);
     FCFG_MYSQL_STMT_INIT(context->admin.search_stmt, &context->mysql);
     FCFG_MYSQL_STMT_INIT(context->admin.get_pk_stmt, &context->mysql);
+    FCFG_MYSQL_STMT_INIT(context->monitor.max_env_ver_stmt, &context->mysql);
+    FCFG_MYSQL_STMT_INIT(context->monitor.max_cfg_ver_stmt, &context->mysql);
 
     on = true;
     mysql_options(&context->mysql, MYSQL_OPT_RECONNECT, &on);
@@ -91,6 +95,8 @@ int fcfg_server_dao_init(FCFGMySQLContext *context)
     FCFG_MYSQL_STMT_PREPARE(context->agent.select_stmt, select_sql);
     FCFG_MYSQL_STMT_PREPARE(context->admin.search_stmt, search_sql);
     FCFG_MYSQL_STMT_PREPARE(context->admin.get_pk_stmt, get_pk_sql);
+    FCFG_MYSQL_STMT_PREPARE(context->monitor.max_env_ver_stmt, max_env_ver_sql);
+    FCFG_MYSQL_STMT_PREPARE(context->monitor.max_cfg_ver_stmt, max_cfg_ver_sql);
 
     return 0;
 }
@@ -753,4 +759,68 @@ void fcfg_server_dao_free_env_array(FCFGEnvArray *array)
     free(array->rows);
     array->rows = NULL;
     array->count = 0;
+}
+
+static int fcfg_server_dao_store_max_version(MYSQL_STMT *stmt, int64_t *max_version)
+{
+    MYSQL_BIND result_binds[1];
+    bool is_null;
+    bool error;
+    int row_count;
+
+    *max_version = 0;
+
+    memset(result_binds, 0, sizeof(result_binds));
+    result_binds[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    result_binds[0].buffer = (char *)max_version;
+    result_binds[0].is_null = &is_null;
+    result_binds[0].error = &error;
+    if (mysql_stmt_bind_result(stmt, result_binds) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_bind_result fail, error info: %s",
+                __LINE__, mysql_stmt_error(stmt));
+        return EINVAL;
+    }
+
+    if (mysql_stmt_execute(stmt) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_execute fail, error info: %s",
+                __LINE__, mysql_stmt_error(stmt));
+        return EINVAL;
+    }
+
+    if (mysql_stmt_store_result(stmt) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_store_result fail, error info: %s",
+                __LINE__, mysql_stmt_error(stmt));
+        return EINVAL;
+    }
+
+    row_count = mysql_stmt_num_rows(stmt);
+    if (row_count == 0) {
+        return 0;
+    }
+
+    if (mysql_stmt_fetch(stmt) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_fetch fail, error info: %s",
+                __LINE__, mysql_stmt_error(stmt));
+        return EFAULT;
+    }
+
+    return 0;
+}
+
+int fcfg_server_dao_max_config_version(FCFGMySQLContext *context,
+            int64_t *max_version)
+{
+    return fcfg_server_dao_store_max_version(context->monitor.max_cfg_ver_stmt,
+            max_version);
+}
+
+int fcfg_server_dao_max_env_version(FCFGMySQLContext *context,
+        int64_t *max_version)
+{
+    return fcfg_server_dao_store_max_version(context->monitor.max_env_ver_stmt,
+            max_version);
 }

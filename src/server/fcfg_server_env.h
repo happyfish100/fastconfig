@@ -4,6 +4,8 @@
 
 #include "common/fcfg_types.h"
 
+struct fcfg_mysql_context;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,6 +13,8 @@ extern "C" {
     int fcfg_server_env_init();
 
     void fcfg_server_env_destroy();
+
+    int fcfg_server_env_load(struct fcfg_mysql_context *context);
 
     bool fcfg_server_env_exists(const char *env);
 

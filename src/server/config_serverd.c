@@ -23,10 +23,13 @@
 #include "sf/sf_service.h"
 #include "sf/sf_util.h"
 #include "common/fcfg_proto.h"
+#include "common/fcfg_types.h"
+#include "fcfg_server_types.h"
 #include "fcfg_server_func.h"
 #include "fcfg_server_handler.h"
 #include "fcfg_server_dao.h"
 #include "fcfg_server_env.h"
+#include "fcfg_server_push.h"
 
 static bool daemon_mode = true;
 static int setup_server_env(const char *config_filename);
@@ -92,10 +95,11 @@ int main(int argc, char *argv[])
 
     fcfg_proto_init();
 
-    r = sf_service_init(fcfg_server_alloc_thread_extra_data, NULL,
+    r = sf_service_init(fcfg_server_alloc_thread_extra_data,
+            fcfg_server_thread_loop,
             NULL, fcfg_proto_set_body_length, fcfg_server_deal_task,
             fcfg_server_task_finish_cleanup, NULL, 100, sizeof(FCFGProtoHeader),
-            0);
+            sizeof(FCFGServerTaskArg));
     gofailif(r,"service init error");
     sf_set_remove_from_ready_list(false);
 
@@ -165,6 +169,8 @@ static int test()
     const int64_t version = 64;
     const int offset = 0;
     const int limit = 5;
+    int64_t max_env_version = 0;
+    int64_t max_cfg_version = 0;
 
     if ((result=fcfg_server_dao_init(&context)) != 0) {
         return result;
@@ -179,11 +185,24 @@ static int test()
             env, version, limit, &rows);
     fcfg_server_dao_free_config_array(&rows);
 
+    logInfo("fcfg_server_dao_list_config_by_env_and_version output:");
+    fcfg_server_dao_list_config_by_env_and_version(&context,
+            env, version, limit, &rows);
+    fcfg_server_dao_free_config_array(&rows);
+
     /*
     logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
     logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
     logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
     */
+
+    fcfg_server_dao_max_env_version(&context, &max_env_version);
+    fcfg_server_dao_max_config_version(&context, &max_cfg_version);
+
+    fcfg_server_dao_max_env_version(&context, &max_env_version);
+    fcfg_server_dao_max_config_version(&context, &max_cfg_version);
+    logInfo("max_env_version: %"PRId64", max_cfg_version: %"PRId64,
+            max_env_version, max_cfg_version);
 
     logInfo("fcfg_server_dao_search_config output:");
     name = "system%";

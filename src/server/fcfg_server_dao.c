@@ -51,7 +51,8 @@ int fcfg_server_dao_init(FCFGMySQLContext *context)
     const char *get_pk_sql = CONFIG_SELECT_SQL
         "WHERE env = ? AND name = ? and status = 0";
     const char *max_env_ver_sql = "SELECT MAX(version) FROM fast_environment";
-    const char *max_cfg_ver_sql = "SELECT MAX(version) FROM fast_config";
+    const char *max_cfg_ver_sql = "SELECT MAX(version) FROM fast_config "
+        "WHERE env = ?";
 
     mysql_init(&context->mysql);
     FCFG_MYSQL_STMT_INIT(context->admin.update_stmt, &context->mysql);
@@ -812,8 +813,25 @@ static int fcfg_server_dao_store_max_version(MYSQL_STMT *stmt, int64_t *max_vers
 }
 
 int fcfg_server_dao_max_config_version(FCFGMySQLContext *context,
-            int64_t *max_version)
+            const char *env, int64_t *max_version)
 {
+    MYSQL_BIND select_binds[1];
+    unsigned long env_len;
+
+    env_len = strlen(env);
+    memset(select_binds, 0, sizeof(select_binds));
+
+    select_binds[0].buffer_type = MYSQL_TYPE_STRING;
+    select_binds[0].buffer = (char *)env;
+    select_binds[0].length = &env_len;
+    if (mysql_stmt_bind_param(context->monitor.max_cfg_ver_stmt, select_binds) != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "call mysql_stmt_bind_param fail, error info: %s",
+                __LINE__, mysql_stmt_error(context->monitor.max_cfg_ver_stmt));
+        *max_version = 0;
+        return EINVAL;
+    }
+
     return fcfg_server_dao_store_max_version(context->monitor.max_cfg_ver_stmt,
             max_version);
 }

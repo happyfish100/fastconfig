@@ -8,6 +8,8 @@
 #include "fcfg_server_dao.h"
 #include "fcfg_server_env.h"
 
+static int64_t current_env_version = 0;
+
 static int fcfg_server_env_free_func(void *args)
 {
     FCFGEnvArray *array;
@@ -39,7 +41,8 @@ static int fcfg_server_env_array_set(FCFGEnvArray *new_array)
     }
 
     logInfo("file: "__FILE__", line: %d, "
-            "config env count: %d", __LINE__, new_array->count);
+            "config env count: %d, current version: %"PRId64,
+            __LINE__, new_array->count, current_env_version);
     return 0;
 }
 
@@ -47,6 +50,17 @@ int fcfg_server_env_load(struct fcfg_mysql_context *context)
 {
     FCFGEnvArray *new_array;
     int result;
+    int64_t new_env_version;
+
+    result = fcfg_server_dao_max_env_version(context, &new_env_version);
+    if (result != 0) {
+        return result;
+    }
+
+    if (current_env_version == new_env_version) {
+        return 0;
+    }
+
     new_array = (FCFGEnvArray *)malloc(sizeof(FCFGEnvArray));
     if (new_array == NULL) {
         logError("file: "__FILE__", line: %d, "
@@ -58,6 +72,7 @@ int fcfg_server_env_load(struct fcfg_mysql_context *context)
         return result;
     }
 
+    current_env_version = new_env_version;
     return fcfg_server_env_array_set(new_array);
 }
 

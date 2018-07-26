@@ -197,10 +197,10 @@ static int test()
     */
 
     fcfg_server_dao_max_env_version(&context, &max_env_version);
-    fcfg_server_dao_max_config_version(&context, &max_cfg_version);
+    fcfg_server_dao_max_config_version(&context, env, &max_cfg_version);
 
     fcfg_server_dao_max_env_version(&context, &max_env_version);
-    fcfg_server_dao_max_config_version(&context, &max_cfg_version);
+    fcfg_server_dao_max_config_version(&context, env, &max_cfg_version);
     logInfo("max_env_version: %"PRId64", max_cfg_version: %"PRId64,
             max_env_version, max_cfg_version);
 

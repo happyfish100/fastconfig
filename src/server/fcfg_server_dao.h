@@ -56,7 +56,7 @@ extern "C" {
     void fcfg_server_dao_free_config_array(FCFGConfigArray *array);
 
     int fcfg_server_dao_max_config_version(FCFGMySQLContext *context,
-            int64_t *max_version);
+            const char *env, int64_t *max_version);
 
     int fcfg_server_dao_add_env(FCFGMySQLContext *context, const char *env);
 

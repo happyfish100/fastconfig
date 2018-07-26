@@ -157,7 +157,7 @@ int fcfg_admin_get_config (FCFGConfigArray *array)
 
     fcfg_header_proto = (FCFGProtoHeader *)buff;
     fcfg_set_admin_get_config(buff + sizeof(FCFGProtoHeader), &body_len);
-    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_DEL_CONFIG_REQ, body_len);
+    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_GET_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(&g_fcfg_admin_vars.join_conn, buff, size, &resp_info,
             g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);

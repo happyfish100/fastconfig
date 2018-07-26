@@ -25,6 +25,7 @@
 #define FCFG_PROTO_SET_CONFIG_REQ     43  //admin -> center
 #define FCFG_PROTO_DEL_CONFIG_REQ     45  //admin -> center
 #define FCFG_PROTO_GET_CONFIG_REQ     47  //admin -> center
+#define FCFG_PROTO_GET_CONFIG_RESP    48
 
 #define FCFG_PROTO_LIST_CONFIG_REQ    49  //admin -> center
 #define FCFG_PROTO_LIST_CONFIG_RESP   50

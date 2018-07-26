@@ -4,9 +4,6 @@
 #include <time.h>
 #include "fastcommon/common_define.h"
 
-#define FCFG_SERVER_DEFAULT_INNER_PORT  20000
-#define FCFG_SERVER_DEFAULT_OUTER_PORT  20000
-
 #define FCFG_ERROR_INFO_SIZE             256
 
 #define FCFG_CONFIG_STATUS_NORMAL        0

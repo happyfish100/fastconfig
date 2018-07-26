@@ -13,7 +13,7 @@ extern "C" {
 
     void fcfg_server_cfg_destroy();
 
-    int fcfg_server_cfg_reload();
+    int fcfg_server_cfg_reload(struct fcfg_mysql_context *context);
 
 #ifdef __cplusplus
 }

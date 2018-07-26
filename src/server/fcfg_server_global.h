@@ -13,8 +13,11 @@ typedef struct fcfg_server_global_vars {
         char *password;
         char *database;
     } db_config;
+
     FCFGEnvArray *env_array;
-    char tmp_path[MAX_PATH_SIZE];
+
+    int reload_interval_ms;
+
 } FCFGServerGlobalVars;
 
 #ifdef __cplusplus

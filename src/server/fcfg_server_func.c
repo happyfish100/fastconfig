@@ -5,7 +5,7 @@
 #include "fastcommon/logger.h"
 #include "sf/sf_global.h"
 #include "sf/sf_service.h"
-#include "common/fcfg_types.h"
+#include "fcfg_server_types.h"
 #include "fcfg_server_global.h"
 #include "fcfg_server_func.h"
 
@@ -109,16 +109,24 @@ int fcfg_server_load_config(const char *filename)
         return result;
     }
 
+    g_server_global_vars.reload_interval_ms = iniGetIntValue(NULL,
+            "reload_interval_ms", &ini_context,
+            FCFG_SERVER_DEFAULT_RELOAD_INTERVAL);
+    if (g_server_global_vars.reload_interval_ms <= 0) {
+        g_server_global_vars.reload_interval_ms = FCFG_SERVER_DEFAULT_RELOAD_INTERVAL;
+    }
+
     iniFreeContext(&ini_context);
 
     snprintf(server_config_str, sizeof(server_config_str),
             "db config {host: %s, port: %d, user: %s, "
-            "password: %s, database: %s}",
+            "password: %s, database: %s}, reload_interval_ms: %d ms",
             g_server_global_vars.db_config.host,
             g_server_global_vars.db_config.port,
             g_server_global_vars.db_config.user,
             g_server_global_vars.db_config.password,
-            g_server_global_vars.db_config.database);
+            g_server_global_vars.db_config.database,
+            g_server_global_vars.reload_interval_ms);
     sf_log_config_ex(server_config_str);
     return 0;
 }

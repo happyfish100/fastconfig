@@ -28,7 +28,6 @@
 #include "fcfg_server_func.h"
 #include "fcfg_server_handler.h"
 #include "fcfg_server_dao.h"
-#include "fcfg_server_env.h"
 #include "fcfg_server_push.h"
 
 static bool daemon_mode = true;
@@ -76,6 +75,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    sched_set_delay_params(300, 1024);
     r = setup_server_env(config_filename);
     gofailif(r,"");
 
@@ -90,8 +90,8 @@ int main(int argc, char *argv[])
     r = fcfg_server_handler_init();
     gofailif(r,"server handler init error");
 
-    r = fcfg_server_env_init();
-    gofailif(r,"server env init error");
+    r = fcfg_server_push_init();
+    gofailif(r,"server push init error");
 
     fcfg_proto_init();
 
@@ -102,7 +102,6 @@ int main(int argc, char *argv[])
             sizeof(FCFGServerTaskArg));
     gofailif(r,"service init error");
     sf_set_remove_from_ready_list(false);
-
 
     test();
 

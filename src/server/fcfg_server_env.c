@@ -78,20 +78,7 @@ int fcfg_server_env_load(struct fcfg_mysql_context *context)
 
 int fcfg_server_env_init()
 {
-    FCFGMySQLContext mysql_context;
-    int result;
-
-    //to check mysql environment
-    if ((result=fcfg_server_dao_init(&mysql_context)) != 0) {
-        return result;
-    }
-
-    if ((result=fcfg_server_env_load(&mysql_context)) != 0) {
-        return result;
-    }
-
-    fcfg_server_dao_destroy(&mysql_context);
-    return 0;
+   return 0;
 }
 
 void fcfg_server_env_destroy()

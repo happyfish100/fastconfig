@@ -62,21 +62,23 @@ static void parse_args(int argc, char **argv)
 void fcfg_set_admin_set_config(char *buff,
         int *body_len)
 {
+    FCFGProtoSetConfigReq *set_config_req = (FCFGProtoSetConfigReq *)buff;
     unsigned char env_len = strlen(g_fcfg_admin_set_vars.config_env);
     unsigned char name_len = strlen(g_fcfg_admin_set_vars.config_name);
     int value_len = strlen(g_fcfg_admin_set_vars.config_value);
-    *buff = env_len;
-    *(buff + 1) = name_len;
-    int2buff(value_len, buff + 2);
-    memcpy(buff + 6, g_fcfg_admin_set_vars.config_env,
+
+    set_config_req->env_len = env_len;
+    set_config_req->name_len = name_len;
+    int2buff(value_len, set_config_req->value_len);
+    memcpy(set_config_req->env, g_fcfg_admin_set_vars.config_env,
            env_len);
-    memcpy(buff + 6 + env_len,
+    memcpy(set_config_req->env + env_len,
            g_fcfg_admin_set_vars.config_name,
            name_len);
-    memcpy(buff + 6 + env_len + name_len,
+    memcpy(set_config_req->env + env_len + name_len,
            g_fcfg_admin_set_vars.config_value,
            value_len);
-    *body_len = 6 + env_len + name_len + value_len;
+    *body_len = sizeof(FCFGProtoSetConfigReq) + env_len + name_len + value_len;
 }
 
 int fcfg_admin_set_config ()
@@ -99,7 +101,8 @@ int fcfg_admin_set_config ()
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info, g_fcfg_admin_vars.network_timeout);
+    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+            g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         fprintf(stderr, "set config fail.err info: %s\n",
                 resp_info.error.message);

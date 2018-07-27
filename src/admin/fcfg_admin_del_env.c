@@ -54,10 +54,11 @@ static void parse_args(int argc, char **argv)
 void fcfg_set_admin_del_env(char *buff,
         int *body_len)
 {
+    FCFGProtoDelEnvReq *del_env_req = (FCFGProtoDelEnvReq *)buff;
     unsigned char env_len = strlen(g_fcfg_admin_del_env.config_env);
-    memcpy(buff, g_fcfg_admin_del_env.config_env,
+    memcpy(del_env_req->env, g_fcfg_admin_del_env.config_env,
            env_len);
-    *body_len = env_len;
+    *body_len = sizeof(FCFGProtoDelEnvReq) + env_len;
 }
 
 int fcfg_admin_del_env ()
@@ -71,7 +72,7 @@ int fcfg_admin_del_env ()
 
     fcfg_header_proto = (FCFGProtoHeader *)buff;
     fcfg_set_admin_del_env(buff + sizeof(FCFGProtoHeader), &body_len);
-    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_ADD_ENV_REQ, body_len);
+    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_DEL_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(&g_fcfg_admin_vars.join_conn, buff, size, &resp_info,
             g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
@@ -80,7 +81,8 @@ int fcfg_admin_del_env ()
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info, g_fcfg_admin_vars.network_timeout);
+    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+            g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         fprintf(stderr, "del env fail.err info: %s\n",
                 resp_info.error.message);

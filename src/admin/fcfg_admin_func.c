@@ -96,9 +96,9 @@ int fcfg_admin_load_config(const char *filename)
 
 
 int fcfg_admin_check_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout)
+        FCFGResponseInfo *resp_info, int network_timeout, unsigned char resp_cmd)
 {
-    if (resp_info->cmd == FCFG_PROTO_ACK && resp_info->status == 0) {
+    if (resp_info->cmd == resp_cmd && resp_info->status == 0) {
         return 0;
     } else {
         if (resp_info->body_len) {
@@ -132,7 +132,7 @@ int fcfg_send_admin_join_request(ConnectionInfo *join_conn, int network_timeout,
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response (join_conn, &resp_info, network_timeout);
+    ret = fcfg_admin_check_response (join_conn, &resp_info, network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         fprintf(stderr, "join server fail. %s\n", resp_info.error.message);
     } else {

@@ -34,7 +34,7 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:n:")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:n:l:")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
@@ -192,7 +192,8 @@ int fcfg_admin_list_config (FCFGConfigArray *array)
                     ret, strerror(ret));
             return ret;
         }
-        ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info, g_fcfg_admin_vars.network_timeout);
+        ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn,
+                &resp_info, g_fcfg_admin_vars.network_timeout, FCFG_PROTO_LIST_ENV_RESP);
         if (ret) {
             fprintf(stderr, "list config fail.err info: %s\n",
                     resp_info.error.message);

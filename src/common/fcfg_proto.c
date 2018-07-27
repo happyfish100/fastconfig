@@ -57,3 +57,24 @@ void fcfg_free_config_array(FCFGConfigArray *array)
     array->rows = NULL;
     array->count = 0;
 }
+
+void fcfg_free_env_array(FCFGEnvArray *array)
+{
+    FCFGEnvEntry *current;
+    FCFGEnvEntry *end;
+
+    if (array->rows == NULL) {
+        return;
+    }
+
+    end = array->rows + array->count;
+    for (current=array->rows; current<end; current++) {
+        if (current->env.str != NULL) {
+            free(current->env.str);
+        }
+    }
+
+    free(array->rows);
+    array->rows = NULL;
+    array->count = 0;
+}

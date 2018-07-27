@@ -58,16 +58,18 @@ static void parse_args(int argc, char **argv)
 void fcfg_set_admin_del_config(char *buff,
         int *body_len)
 {
+    FCFGProtoDelConfigReq *del_config_req = (FCFGProtoDelConfigReq *)buff;
     unsigned char env_len = strlen(g_fcfg_admin_del_vars.config_env);
     unsigned char name_len = strlen(g_fcfg_admin_del_vars.config_name);
-    *buff = env_len;
-    *(buff + 1) = name_len;
-    memcpy(buff + 2,
-           g_fcfg_admin_del_vars.config_name,
-           name_len);
-    memcpy(buff + 2 + name_len, g_fcfg_admin_del_vars.config_env,
+    
+    del_config_req->env_len = env_len;
+    del_config_req->name_len = name_len;
+    memcpy(del_config_req->env,
+           g_fcfg_admin_del_vars.config_env,
            env_len);
-    *body_len = 2 + env_len + name_len;
+    memcpy(del_config_req->env + env_len, g_fcfg_admin_del_vars.config_name,
+           name_len);
+    *body_len = sizeof(FCFGProtoDelConfigReq) + env_len + name_len;
 }
 
 int fcfg_admin_del_config ()
@@ -90,7 +92,8 @@ int fcfg_admin_del_config ()
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info, g_fcfg_admin_vars.network_timeout);
+    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+            g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         fprintf(stderr, "set config fail.err info: %s\n",
                 resp_info.error.message);

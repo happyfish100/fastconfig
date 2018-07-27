@@ -33,6 +33,7 @@
 #define FCFG_PROTO_ADD_ENV_REQ        51  //admin -> center
 #define FCFG_PROTO_DEL_ENV_REQ        53  //admin -> center
 #define FCFG_PROTO_GET_ENV_REQ        55  //admin -> center
+#define FCFG_PROTO_GET_ENV_RESP       56
 
 #define FCFG_PROTO_LIST_ENV_REQ       57  //admin -> center
 #define FCFG_PROTO_LIST_ENV_RESP      58
@@ -65,8 +66,8 @@ typedef struct fcfg_proto_push_config_body_part {
     char version[8];
     char create_time[4];  //unix timestamp
     char update_time[4];  //unix timestamp
-    char *value;   //value = name + name_len
     char name[0];
+    //char *value;   //value = name + name_len
 } FCFGProtoPushConfigBodyPart;
 
 typedef struct fcfg_proto_push_resp {
@@ -85,22 +86,22 @@ typedef struct fcfg_proto_set_config_req {
     unsigned char name_len;
     char value_len[4];
     char env[0];
-    char *name;    //name = env + env_len
-    char *value;   //value = name + name_len
+    //char *name;    //name = env + env_len
+    //char *value;   //value = name + name_len
 } FCFGProtoSetConfigReq;
 
 typedef struct fcfg_proto_del_config_req {
     unsigned char env_len;
     unsigned char name_len;
-    char *name;    //name = env + env_len
     char env[0];
+    //char *name;    //name = env + env_len
 } FCFGProtoDelConfigReq;
 
 typedef struct fcfg_proto_get_config_req {
     unsigned char env_len;
     unsigned char name_len;
-    char *name;    //name = env + env_len
     char env[0];
+    //char *name;    //name = env + env_len
 } FCFGProtoGetConfigReq;
 
 typedef FCFGProtoPushConfigBodyPart FCFGProtoGetConfigResp;
@@ -112,8 +113,8 @@ typedef struct fcfg_proto_list_config_req {
         char offset[2];
         char count[2];
     } limit;  //mysql limit
-    char *name;    //name = env + env_len
     char env[0];
+    //char *name;    //name = env + env_len
 } FCFGProtoListConfigReq;
 
 typedef struct fcfg_proto_list_config_resp_header {
@@ -171,6 +172,7 @@ void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
         FCFGResponseInfo *resp_info);
 
 void fcfg_free_config_array(FCFGConfigArray *array);
+void fcfg_free_env_array(FCFGEnvArray *array);
 
 static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
@@ -243,9 +245,6 @@ static inline int fcfg_proto_check_body_length(struct fast_task_info *task,
     return fcfg_proto_check_max_body_length(task, request, response,
             max_body_length, filename, line);
 }
-
-#define offset_of_member(struct_type, member) \
-    ((int)(&(((struct_type *)0)->member)))
 
 #define FCFG_PROTO_EXPECT_BODY_LEN(task, request, response, expect_length) \
     fcfg_proto_expect_body_length(task, request, response, expect_length, __FILE__, __LINE__)

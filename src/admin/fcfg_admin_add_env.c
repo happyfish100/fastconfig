@@ -54,10 +54,11 @@ static void parse_args(int argc, char **argv)
 void fcfg_set_admin_add_env(char *buff,
         int *body_len)
 {
+    FCFGProtoAddEnvReq *add_env_req = (FCFGProtoAddEnvReq *)buff;
     unsigned char env_len = strlen(g_fcfg_admin_add_env.config_env);
-    memcpy(buff, g_fcfg_admin_add_env.config_env,
+    memcpy(add_env_req->env, g_fcfg_admin_add_env.config_env,
            env_len);
-    *body_len = env_len;
+    *body_len = sizeof(FCFGProtoAddEnvReq) + env_len;
 }
 
 int fcfg_admin_add_env ()
@@ -80,7 +81,8 @@ int fcfg_admin_add_env ()
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info, g_fcfg_admin_vars.network_timeout);
+    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+            g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         fprintf(stderr, "add env fail.err info: %s\n",
                 resp_info.error.message);

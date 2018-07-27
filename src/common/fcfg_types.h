@@ -40,6 +40,7 @@ typedef struct fcfg_config_entry {
 
 typedef struct {
     FCFGConfigEntry *rows;
+    int alloc;
     int count;
 } FCFGConfigArray;
 

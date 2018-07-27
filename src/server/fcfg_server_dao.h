@@ -53,6 +53,9 @@ extern "C" {
             const char *env, const char *name, const int offset,
             const int limit, FCFGConfigArray *array);
 
+    int fcfg_server_dao_copy_config_array(FCFGConfigArray *src,
+            FCFGConfigArray *dest);
+
     void fcfg_server_dao_free_config_array(FCFGConfigArray *array);
 
     int fcfg_server_dao_max_config_version(FCFGMySQLContext *context,

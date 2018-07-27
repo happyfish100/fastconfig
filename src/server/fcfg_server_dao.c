@@ -377,7 +377,7 @@ static int fcfg_server_dao_store_rows(MYSQL_STMT *stmt, FCFGConfigArray *array)
                 "call mysql_stmt_bind_result fail, error info: %s",
                 __LINE__, mysql_stmt_error(stmt));
         array->rows = NULL;
-        array->count = 0;
+        array->alloc = array->count = 0;
         return EINVAL;
     }
 
@@ -386,7 +386,7 @@ static int fcfg_server_dao_store_rows(MYSQL_STMT *stmt, FCFGConfigArray *array)
                 "call mysql_stmt_execute fail, error info: %s",
                 __LINE__, mysql_stmt_error(stmt));
         array->rows = NULL;
-        array->count = 0;
+        array->alloc = array->count = 0;
         return EINVAL;
     }
 
@@ -395,23 +395,32 @@ static int fcfg_server_dao_store_rows(MYSQL_STMT *stmt, FCFGConfigArray *array)
                 "call mysql_stmt_store_result fail, error info: %s",
                 __LINE__, mysql_stmt_error(stmt));
         array->rows = NULL;
-        array->count = 0;
+        array->alloc = array->count = 0;
         return EINVAL;
     }
 
     row_count = mysql_stmt_num_rows(stmt);
     if (row_count == 0) {
-        array->count = 0;
+        array->alloc = array->count = 0;
         array->rows = NULL;
         return 0;
     }
 
-    bytes = sizeof(FCFGConfigEntry) * row_count;
+    if (row_count <= 2) {  //fast path
+        array->alloc = row_count;
+    } else {
+        array->alloc = 4;
+        while (array->alloc < row_count) {
+            array->alloc *= 2;
+        }
+    }
+
+    bytes = sizeof(FCFGConfigEntry) * array->alloc;
     array->rows = (FCFGConfigEntry *)malloc(bytes);
     if (array->rows == NULL) {
         logError("file: "__FILE__", line: %d, "
                 "malloc %d bytes fail", __LINE__, bytes);
-        array->count = 0;
+        array->alloc = array->count = 0;
         return ENOMEM;
     }
 
@@ -558,6 +567,42 @@ int fcfg_server_dao_get_config(FCFGMySQLContext *context, const char *env,
     return fcfg_server_dao_store_rows(context->admin.get_pk_stmt, array);
 }
 
+int fcfg_server_dao_copy_config_array(FCFGConfigArray *src, FCFGConfigArray *dest)
+{
+    FCFGConfigEntry *cur;
+    FCFGConfigEntry *end;
+    FCFGConfigEntry *out;
+    int bytes;
+
+    if (src->count == 0) {
+        return 0;
+    }
+
+    out = dest->rows + dest->count;
+    end = src->rows + src->count;
+    for (cur=src->rows; cur<end; cur++, out++) {
+        out->name.len = cur->name.len;
+        out->value.len = cur->value.len;
+        out->version = cur->version;
+        out->status = cur->status;
+        out->create_time = cur->create_time;
+        out->update_time = cur->update_time;
+
+        bytes = cur->name.len + cur->value.len + 2;
+        out->name.str = (char *)malloc(bytes);
+        if (out->name.str == NULL) {
+            logError("file: "__FILE__", line: %d, "
+                    "malloc %d bytes fail", __LINE__, bytes);
+            return ENOMEM;
+        }
+        out->value.str = out->name.str + cur->name.len + 1;
+        memcpy(out->name.str, cur->name.str, bytes);
+    }
+
+    dest->count += src->count;
+    return 0;
+}
+
 void fcfg_server_dao_free_config_array(FCFGConfigArray *array)
 {
     FCFGConfigEntry *current;
@@ -576,7 +621,7 @@ void fcfg_server_dao_free_config_array(FCFGConfigArray *array)
 
     free(array->rows);
     array->rows = NULL;
-    array->count = 0;
+    array->alloc = array->count = 0;
 }
 
 static int fcfg_server_dao_env_execute(FCFGMySQLContext *context,

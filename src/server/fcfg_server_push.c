@@ -99,5 +99,15 @@ int fcfg_server_push_destroy()
 
 int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
 {
+    struct common_blocked_queue *push_queue;
+    FCFGServerPushEvent *event;
+
+    push_queue = &((FCFGServerContext *)thread_data->arg)->push_queue;
+
+    while ((event=(FCFGServerPushEvent *)common_blocked_queue_try_pop(
+                    push_queue)) != NULL)
+    {
+    }
+
     return 0;
 }

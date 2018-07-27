@@ -94,6 +94,7 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array
         return ENOMEM;
     }
     strncpy(array->rows->env.str, get_env_resp->env, array->rows->env.len);
+    array->rows->env.str[array->rows->env.len] = '\0';
 
     return 0;
 }
@@ -101,7 +102,7 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array
 int fcfg_admin_get_env_response(ConnectionInfo *join_conn,
         FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvArray *array)
 {
-    char buff[FCFG_CONFIG_VALUE_SIZE + 1024];
+    char buff[1024];
     int ret;
     if (resp_info->body_len == 0) {
         return -1;
@@ -121,7 +122,7 @@ int fcfg_admin_get_env_response(ConnectionInfo *join_conn,
 }
 
 
-int fcfg_admin_get_env (FCFGEnvArray *array)
+int fcfg_admin_get_env (FCFGEnvArray *array, ConnectionInfo *join_conn)
 {
     int ret;
     char buff[1024];
@@ -134,21 +135,21 @@ int fcfg_admin_get_env (FCFGEnvArray *array)
     fcfg_set_admin_get_env(buff + sizeof(FCFGProtoHeader), &body_len);
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_GET_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
-    ret = send_and_recv_response_header(&g_fcfg_admin_vars.join_conn, buff, size, &resp_info,
+    ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
     if (ret) {
         fprintf(stderr, "send_and_recv_response_header fail. ret:%d, %s\n",
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn,
+    ret = fcfg_admin_check_response(join_conn,
             &resp_info,
             g_fcfg_admin_vars.network_timeout, FCFG_PROTO_GET_ENV_RESP);
     if (ret) {
         fprintf(stderr, "get env fail.err info: %s\n",
                 resp_info.error.message);
     } else {
-        ret = fcfg_admin_get_env_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+        ret = fcfg_admin_get_env_response(join_conn, &resp_info,
                 g_fcfg_admin_vars.network_timeout, array);
     }
 
@@ -161,6 +162,7 @@ int fcfg_admin_get_env (FCFGEnvArray *array)
 int main (int argc, char **argv)
 {
     int ret;
+    ConnectionInfo *join_conn;
     FCFGEnvArray array;
     memset(&array, 0, sizeof(FCFGEnvArray));
 
@@ -184,29 +186,22 @@ int main (int argc, char **argv)
         return ret;
     }
 
-
-    if ((ret = conn_pool_connect_server(&g_fcfg_admin_vars.join_conn,
-                    g_fcfg_admin_vars.connect_timeout)) != 0) {
-        fprintf(stderr, "conn_pool_connect_server fail: %s:%d, ret:%d, %s\n",
-                g_fcfg_admin_vars.join_conn.ip_addr,
-                g_fcfg_admin_vars.join_conn.port,
-                ret, strerror(ret));
+    ret = fcfg_do_conn_config_server(&join_conn);
+    if (ret) {
         log_destroy();
         return ret;
     }
 
-    if ((ret = fcfg_send_admin_join_request(&g_fcfg_admin_vars.join_conn,
+    if ((ret = fcfg_send_admin_join_request(join_conn,
             g_fcfg_admin_vars.network_timeout,
             g_fcfg_admin_vars.connect_timeout)) != 0) {
         log_destroy();
         return ret;
     }
 
-    ret = fcfg_admin_get_env(&array);
-    if (g_fcfg_admin_vars.join_conn.sock >= 0) {
-        conn_pool_disconnect_server(&g_fcfg_admin_vars.join_conn);
-    }
+    ret = fcfg_admin_get_env(&array, join_conn);
 
+    fcfg_disconn_config_server(join_conn);
     log_destroy();
     return 0;
 }

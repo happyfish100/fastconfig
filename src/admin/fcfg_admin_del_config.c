@@ -72,7 +72,7 @@ void fcfg_set_admin_del_config(char *buff,
     *body_len = sizeof(FCFGProtoDelConfigReq) + env_len + name_len;
 }
 
-int fcfg_admin_del_config ()
+int fcfg_admin_del_config (ConnectionInfo *join_conn)
 {
     int ret;
     char buff[1024];
@@ -85,14 +85,14 @@ int fcfg_admin_del_config ()
     fcfg_set_admin_del_config(buff + sizeof(FCFGProtoHeader), &body_len);
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_DEL_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
-    ret = send_and_recv_response_header(&g_fcfg_admin_vars.join_conn, buff, size, &resp_info,
+    ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
     if (ret) {
         fprintf(stderr, "send_and_recv_response_header fail. ret:%d, %s\n",
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+    ret = fcfg_admin_check_response(join_conn, &resp_info,
             g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         fprintf(stderr, "set config fail.err info: %s\n",
@@ -107,6 +107,7 @@ int fcfg_admin_del_config ()
 int main (int argc, char **argv)
 {
     int ret;
+    ConnectionInfo *join_conn;
 
     if (argc < 7) {
         usage(argv[0]);
@@ -127,30 +128,21 @@ int main (int argc, char **argv)
         log_destroy();
         return ret;
     }
-
-
-    if ((ret = conn_pool_connect_server(&g_fcfg_admin_vars.join_conn,
-                    g_fcfg_admin_vars.connect_timeout)) != 0) {
-        fprintf(stderr, "conn_pool_connect_server fail: %s:%d, ret:%d, %s\n",
-                g_fcfg_admin_vars.join_conn.ip_addr,
-                g_fcfg_admin_vars.join_conn.port,
-                ret, strerror(ret));
+    ret = fcfg_do_conn_config_server(&join_conn);
+    if (ret) {
         log_destroy();
         return ret;
     }
 
-    if ((ret = fcfg_send_admin_join_request(&g_fcfg_admin_vars.join_conn,
+    if ((ret = fcfg_send_admin_join_request(join_conn,
             g_fcfg_admin_vars.network_timeout,
             g_fcfg_admin_vars.connect_timeout)) != 0) {
         log_destroy();
         return ret;
     }
 
-    ret = fcfg_admin_del_config();
-    if (g_fcfg_admin_vars.join_conn.sock >= 0) {
-        conn_pool_disconnect_server(&g_fcfg_admin_vars.join_conn);
-    }
-
+    ret = fcfg_admin_del_config(join_conn);
+    fcfg_disconn_config_server(join_conn);
     log_destroy();
     return 0;
 }

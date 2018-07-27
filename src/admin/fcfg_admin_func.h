@@ -8,9 +8,10 @@ extern "C" {
 typedef struct fcfg_admin {
     char username[128];
     char secret_key[512];
-    ConnectionInfo join_conn;
     int network_timeout;
     int connect_timeout;
+    int server_count;
+    ConnectionInfo *join_conn;
 } FCFGAdminGlobal;
 
 extern FCFGAdminGlobal g_fcfg_admin_vars;
@@ -22,9 +23,13 @@ int fcfg_admin_check_response(ConnectionInfo *join_conn,
 void fcfg_set_admin_header (FCFGProtoHeader *fcfg_header_proto,
         unsigned char cmd, int body_len);
 int fcfg_admin_load_config(const char *filename);
+int fcfg_do_conn_config_server (ConnectionInfo **conn);
+void fcfg_disconn_config_server (ConnectionInfo *conn);
 
 #define FCFG_NETWORK_TIMEOUT_DEFAULT    30
 #define FCFG_CONNECT_TIMEOUT_DEFAULT    30
+
+#define FCFG_CONFIG_SERVER_COUNT_MAX    10
 
 #ifdef __cplusplus
 }

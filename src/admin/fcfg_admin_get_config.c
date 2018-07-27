@@ -106,11 +106,12 @@ int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
         fcfg_free_config_array(array);
         return ENOMEM;
     }
-    //
     strncpy(array->rows->name.str, get_config_resp->name, array->rows->name.len);
+    array->rows->name.str[array->rows->name.len] = '\0';
     strncpy(array->rows->value.str,
            get_config_resp->name + array->rows->name.len + 1,
            array->rows->value.len);
+    array->rows->value.str[array->rows->value.len] = '\0';
 
     return 0;
 }
@@ -138,7 +139,7 @@ int fcfg_admin_get_config_response(ConnectionInfo *join_conn,
 }
 
 
-int fcfg_admin_get_config (FCFGConfigArray *array)
+int fcfg_admin_get_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
 {
     int ret;
     char buff[1024];
@@ -151,20 +152,20 @@ int fcfg_admin_get_config (FCFGConfigArray *array)
     fcfg_set_admin_get_config(buff + sizeof(FCFGProtoHeader), &body_len);
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_GET_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
-    ret = send_and_recv_response_header(&g_fcfg_admin_vars.join_conn, buff, size, &resp_info,
+    ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
     if (ret) {
         fprintf(stderr, "send_and_recv_response_header fail. ret:%d, %s\n",
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+    ret = fcfg_admin_check_response(join_conn, &resp_info,
             g_fcfg_admin_vars.network_timeout, FCFG_PROTO_GET_CONFIG_RESP);
     if (ret) {
         fprintf(stderr, "get config fail.err info: %s\n",
                 resp_info.error.message);
     } else {
-        ret = fcfg_admin_get_config_response(&g_fcfg_admin_vars.join_conn, &resp_info,
+        ret = fcfg_admin_get_config_response(join_conn, &resp_info,
                 g_fcfg_admin_vars.network_timeout, array);
     }
 
@@ -177,6 +178,7 @@ int fcfg_admin_get_config (FCFGConfigArray *array)
 int main (int argc, char **argv)
 {
     int ret;
+    ConnectionInfo *join_conn;
     FCFGConfigArray array;
 
     if (argc < 7) {
@@ -199,29 +201,22 @@ int main (int argc, char **argv)
         return ret;
     }
 
-
-    if ((ret = conn_pool_connect_server(&g_fcfg_admin_vars.join_conn,
-                    g_fcfg_admin_vars.connect_timeout)) != 0) {
-        fprintf(stderr, "conn_pool_connect_server fail: %s:%d, ret:%d, %s\n",
-                g_fcfg_admin_vars.join_conn.ip_addr,
-                g_fcfg_admin_vars.join_conn.port,
-                ret, strerror(ret));
+    ret = fcfg_do_conn_config_server(&join_conn);
+    if (ret) {
         log_destroy();
         return ret;
     }
 
-    if ((ret = fcfg_send_admin_join_request(&g_fcfg_admin_vars.join_conn,
+    if ((ret = fcfg_send_admin_join_request(join_conn,
             g_fcfg_admin_vars.network_timeout,
             g_fcfg_admin_vars.connect_timeout)) != 0) {
         log_destroy();
         return ret;
     }
 
-    ret = fcfg_admin_get_config(&array);
-    if (g_fcfg_admin_vars.join_conn.sock >= 0) {
-        conn_pool_disconnect_server(&g_fcfg_admin_vars.join_conn);
-    }
+    ret = fcfg_admin_get_config(&array, join_conn);
 
+    fcfg_disconn_config_server(join_conn);
     log_destroy();
-    return 0;
+    return ret;
 }

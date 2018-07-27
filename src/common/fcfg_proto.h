@@ -77,8 +77,8 @@ typedef struct fcfg_proto_push_resp {
 typedef struct fcfg_proto_admin_join_req {
     unsigned char username_len;
     unsigned char secret_key_len;
-    char *secret_key;   //secret_key = username + username_len
     char username[0];
+    //char *secret_key;   //secret_key = username + username_len
 } FCFGProtoAdminJoinReq;
 
 typedef struct fcfg_proto_set_config_req {

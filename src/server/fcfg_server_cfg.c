@@ -69,10 +69,10 @@ static int check_alloc_config_array(FCFGConfigArray **array, const int inc)
     old_array = *array;
     *array = new_array;
     return sched_add_delay_task(fcfg_server_cfg_free_config_array,
-            old_array, 5 * g_sf_global_vars.network_timeout, false);
+            old_array, 10 * g_sf_global_vars.network_timeout, false);
 }
 
-static int fcfg_server_cfg_reload_config(struct fcfg_mysql_context *context,
+static int fcfg_server_cfg_reload_config_incr(struct fcfg_mysql_context *context,
         FCFGEnvPublisher *publisher)
 {
     const int limit = 1024 * 1024;
@@ -106,30 +106,44 @@ static int fcfg_server_cfg_reload_config(struct fcfg_mysql_context *context,
     return result;
 }
 
-static int fcfg_server_cfg_reload_by_env(struct fcfg_mysql_context *context,
+static int fcfg_server_cfg_reload_config_all(struct fcfg_mysql_context *context,
         FCFGEnvPublisher *publisher)
 {
+    const int64_t version = 0;
+    const int limit = 1024 * 1024;
+    FCFGConfigArray *old_array;
+    FCFGConfigArray *new_array;
     int result;
-    FCFGServerTaskArg *task_arg;
-    struct fast_task_info *task;
-    struct common_blocked_queue *push_queue;
-    FCFGServerPushEvent *event;
-    int64_t max_version;
 
-    if ((result=fcfg_server_dao_max_config_version(context,
-            publisher->env, &max_version)) != 0)
+    new_array = (FCFGConfigArray *)malloc(sizeof(FCFGConfigArray));
+    if (new_array == NULL) {
+        logError("file: "__FILE__", line: %d, "
+                "malloc %d bytes fail",
+                __LINE__, (int)sizeof(FCFGConfigArray));
+        return ENOMEM;
+    }
+
+    if ((result=fcfg_server_dao_list_config_by_env_and_version(context,
+                    publisher->env, version, limit, new_array)) != 0)
     {
         return result;
     }
 
-    if (publisher->current_version == max_version) {
-        return 0;
-    }
+    old_array = publisher->config_array;
+    publisher->config_array = new_array;
+    return sched_add_delay_task(fcfg_server_cfg_free_config_array,
+            old_array, 10 * g_sf_global_vars.network_timeout, false);
+}
 
-    if ((result=fcfg_server_cfg_reload_config(context, publisher)) != 0) {
-        return result;
-    }
+static int fcfg_server_cfg_notify(FCFGEnvPublisher *publisher)
+{
+    FCFGServerTaskArg *task_arg;
+    struct fast_task_info *task;
+    struct common_blocked_queue *push_queue;
+    FCFGServerPushEvent *event;
+    int result;
 
+    result = 0;
     pthread_mutex_lock(&publisher->lock);
     fc_list_for_each_entry(task_arg, &publisher->head, subscribe) {
         task = (struct fast_task_info *)((char *)task_arg - ALIGNED_TASK_INFO_SIZE);
@@ -149,20 +163,92 @@ static int fcfg_server_cfg_reload_by_env(struct fcfg_mysql_context *context,
         }
     }
     pthread_mutex_unlock(&publisher->lock);
+    return result;
+}
 
-    publisher->current_version = max_version;
+static int fcfg_server_cfg_reload_by_env_incr(struct fcfg_mysql_context *context,
+        FCFGEnvPublisher *publisher)
+{
+    int result;
+    int64_t max_version;
+
+    if ((result=fcfg_server_dao_max_config_version(context,
+            publisher->env, &max_version)) != 0)
+    {
+        return result;
+    }
+
+    if (publisher->current_version >= max_version) {
+        return 0;
+    }
+
+    if ((result=fcfg_server_cfg_reload_config_incr(context, publisher)) != 0) {
+        return result;
+    }
+
+    if (publisher->config_array->count > 0) {
+        publisher->current_version = publisher->config_array->rows
+            [publisher->config_array->count - 1].version;
+    } else {
+        publisher->current_version = max_version;
+    }
+    publisher->config_stat.version_changed.total_count++;
+
+    return fcfg_server_cfg_notify(publisher);
+}
+
+static int fcfg_server_cfg_reload_by_env_all(struct fcfg_mysql_context *context,
+        FCFGEnvPublisher *publisher)
+{
+    int result;
+    int64_t old_version;
+
+    if ((result=fcfg_server_cfg_reload_config_all(context, publisher)) != 0) {
+        return result;
+    }
+
+    old_version = publisher->current_version;
+    if (publisher->config_array->count > 0) {
+        publisher->current_version = publisher->config_array->rows
+            [publisher->config_array->count - 1].version;
+    } else {
+        publisher->current_version = 0;
+    }
+
+    if (publisher->current_version > old_version) {
+        result = fcfg_server_cfg_notify(publisher);
+    }
     return result;
 }
 
 int fcfg_server_cfg_reload(struct fcfg_mysql_context *context)
 {
+    FCFGEnvPublisher *publisher;
+    FCFGServerReloadAllConfigsPolicy *reload_all_policy;
     int i;
     int result;
+    int changed_count;
 
+    reload_all_policy = &g_server_global_vars.reload_all_configs_policy;
     for (i=0; i<publisher_array.count; i++) {
-        if ((result=fcfg_server_cfg_reload_by_env(context,
-                        publisher_array.envs[i])) != 0)
+        publisher = publisher_array.envs[i];
+        changed_count = publisher->config_stat.version_changed.total_count -
+            publisher->config_stat.version_changed.last_count;
+        if ((changed_count >= reload_all_policy->min_version_changed &&
+                g_current_time - publisher->config_stat.last_reload_all_time >
+                reload_all_policy->min_interval) ||
+                (publisher->config_stat.reload_all && changed_count > 0))
         {
+            publisher->config_stat.reload_all = false;
+            publisher->config_stat.version_changed.last_count =
+                publisher->config_stat.version_changed.total_count;
+            publisher->config_stat.last_reload_all_time = g_current_time;
+            result = fcfg_server_cfg_reload_by_env_all(context, publisher);
+        } else {
+            result = fcfg_server_cfg_reload_by_env_incr(context, publisher);
+        }
+
+        if (result != 0) {
             return result;
         }
     }
@@ -208,8 +294,40 @@ static int check_alloc_publisher_array(FCFGPublisherArray *array)
     return 0;
 }
 
+static int set_reload_all_flag(void *args)
+{
+    int i;
+    pthread_mutex_lock(&publisher_array.lock);
+    for (i=0; i<publisher_array.count; i++) {
+        publisher_array.envs[i]->config_stat.reload_all = true;
+    }
+    pthread_mutex_unlock(&publisher_array.lock);
+
+    return 0;
+}
+
 int fcfg_server_cfg_init()
 {
+#define SCHEDULE_ENTRIES_COUNT 1
+
+    ScheduleArray scheduleArray;
+    ScheduleEntry scheduleEntries[SCHEDULE_ENTRIES_COUNT];
+    int result;
+    int id;
+
+    scheduleArray.entries = scheduleEntries;
+    scheduleArray.count = 1;
+
+    memset(scheduleEntries, 0, sizeof(scheduleEntries));
+
+    id = sched_generate_next_id();
+    INIT_SCHEDULE_ENTRY(scheduleEntries[0], id, 0, 0, 0,
+            g_server_global_vars.reload_all_configs_policy.max_interval,
+            set_reload_all_flag, NULL);
+
+    if ((result=sched_add_entries(&scheduleArray)) != 0) {
+        return result;
+    }
     return init_pthread_lock(&publisher_array.lock);
 }
 

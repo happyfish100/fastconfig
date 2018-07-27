@@ -116,17 +116,45 @@ int fcfg_server_load_config(const char *filename)
         g_server_global_vars.reload_interval_ms = FCFG_SERVER_DEFAULT_RELOAD_INTERVAL;
     }
 
+    g_server_global_vars.reload_all_configs_policy.min_version_changed =
+        iniGetIntValue("reload_all_configs_policy",
+                "min_version_changed", &ini_context, 100);
+    if (g_server_global_vars.reload_all_configs_policy.min_version_changed <= 0) {
+        g_server_global_vars.reload_all_configs_policy.min_version_changed = 100;
+    }
+
+    g_server_global_vars.reload_all_configs_policy.min_interval =
+        iniGetIntValue("reload_all_configs_policy",
+                "min_interval", &ini_context, 3600);
+    if (g_server_global_vars.reload_all_configs_policy.min_interval <= 0) {
+        g_server_global_vars.reload_all_configs_policy.min_interval = 3600;
+    }
+
+    g_server_global_vars.reload_all_configs_policy.max_interval =
+        iniGetIntValue("reload_all_configs_policy",
+                "max_interval", &ini_context, 86400);
+    if (g_server_global_vars.reload_all_configs_policy.max_interval <=
+            g_server_global_vars.reload_all_configs_policy.min_interval)
+    {
+        g_server_global_vars.reload_all_configs_policy.max_interval = 86400;
+    }
+
     iniFreeContext(&ini_context);
 
     snprintf(server_config_str, sizeof(server_config_str),
             "db config {host: %s, port: %d, user: %s, "
-            "password: %s, database: %s}, reload_interval_ms: %d ms",
+            "password: %s, database: %s}, reload_interval_ms: %d ms, "
+            "reload_all_configs_policy {min_version_changed: %d, "
+            "min_interval: %d s, max_interval: %d s}",
             g_server_global_vars.db_config.host,
             g_server_global_vars.db_config.port,
             g_server_global_vars.db_config.user,
             g_server_global_vars.db_config.password,
             g_server_global_vars.db_config.database,
-            g_server_global_vars.reload_interval_ms);
+            g_server_global_vars.reload_interval_ms,
+            g_server_global_vars.reload_all_configs_policy.min_version_changed,
+            g_server_global_vars.reload_all_configs_policy.min_interval,
+            g_server_global_vars.reload_all_configs_policy.max_interval);
     sf_log_config_ex(server_config_str);
     return 0;
 }

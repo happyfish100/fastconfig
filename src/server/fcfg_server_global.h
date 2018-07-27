@@ -5,6 +5,12 @@
 #include "fastcommon/common_define.h"
 #include "fcfg_server_env.h"
 
+typedef struct fcfg_server_reload_all_configs_policy {
+    int min_version_changed;
+    int min_interval;
+    int max_interval;
+} FCFGServerReloadAllConfigsPolicy;
+
 typedef struct fcfg_server_global_vars {
     struct {
         char *host;
@@ -17,6 +23,8 @@ typedef struct fcfg_server_global_vars {
     FCFGEnvArray *env_array;
 
     int reload_interval_ms;
+
+    FCFGServerReloadAllConfigsPolicy reload_all_configs_policy;
 
 } FCFGServerGlobalVars;
 

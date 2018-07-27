@@ -1,6 +1,7 @@
 #ifndef _FCFG_SERVER_TYPES_H
 #define _FCFG_SERVER_TYPES_H
 
+#include <time.h>
 #include <pthread.h>
 #include "fastcommon/common_define.h"
 #include "fastcommon/common_blocked_queue.h"
@@ -26,6 +27,15 @@ typedef struct fcfg_env_publisher {
     pthread_mutex_t lock;
     struct fast_mblock_man event_allocator;
     FCFGConfigArray *config_array;
+
+    struct {
+        time_t last_reload_all_time;
+        struct {
+            int64_t total_count;
+            int64_t last_count;
+        } version_changed;
+        bool reload_all;
+    } config_stat;
 } FCFGEnvPublisher;
 
 typedef struct fcfg_config_message_queue {

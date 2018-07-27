@@ -78,7 +78,7 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     agent_cfg_version = buff2long(join_req->agent_cfg_version);
     logInfo("agent_cfg_version: %"PRId64, agent_cfg_version);
 
-    ((FCFGServerTaskArg *)task->arg)->agent_cfg_version = agent_cfg_version;
+    ((FCFGServerTaskArg *)task->arg)->msg_queue.agent_cfg_version = agent_cfg_version;
 
     join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
     long2buff(center_cfg_version, join_resp->center_cfg_version);

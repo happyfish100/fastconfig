@@ -98,8 +98,8 @@ int main(int argc, char *argv[])
     r = sf_service_init(fcfg_server_alloc_thread_extra_data,
             fcfg_server_thread_loop,
             NULL, fcfg_proto_set_body_length, fcfg_server_deal_task,
-            fcfg_server_task_finish_cleanup, NULL, 100, sizeof(FCFGProtoHeader),
-            sizeof(FCFGServerTaskArg));
+            fcfg_server_task_finish_cleanup, fcfg_server_recv_timeout_callback,
+            100, sizeof(FCFGProtoHeader), sizeof(FCFGServerTaskArg));
     gofailif(r,"service init error");
     sf_set_remove_from_ready_list(false);
 

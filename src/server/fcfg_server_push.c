@@ -97,17 +97,141 @@ int fcfg_server_push_destroy()
     return 0;
 }
 
-int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
+static int find_config_version_closest_less_equal(FCFGConfigArray *array,
+        int64_t target_version)
 {
-    struct common_blocked_queue *push_queue;
-    FCFGServerPushEvent *event;
+    int low;
+    int high;
+    int mid;
 
-    push_queue = &((FCFGServerContext *)thread_data->arg)->push_queue;
-
-    while ((event=(FCFGServerPushEvent *)common_blocked_queue_try_pop(
-                    push_queue)) != NULL)
-    {
+    if (array->count == 0) {
+        return -1;
     }
 
-    return 0;
+    low = 0;
+    high = array->count - 1;
+    while (low <= high) {
+        mid = (low + high) / 2;
+        if (array->rows[mid].version > target_version) {
+            high = mid - 1;
+        } else if (array->rows[mid].version < target_version) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    if (array->rows[high].version < target_version) {
+        return high;
+    } else {
+        return high - 1;
+    }
 }
+
+static int fcfg_server_do_push_configs(struct fast_task_info *task)
+{
+#define CONFIG_RECORD_SIZE(config) \
+    (sizeof(FCFGProtoPushConfigBodyPart) + config->name.len + config->value.len)
+
+    FCFGConfigMessageQueue *msg_queue;
+    FCFGConfigEntry *config;
+    FCFGProtoHeader *proto_header;
+    FCFGProtoPushConfigHeader *header_part;
+    FCFGProtoPushConfigBodyPart *body_part;
+    int result;
+    int start_offset;
+    int record_size;
+    int expect_size;
+    int config_count;
+
+    task->length = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoPushConfigHeader);
+
+    msg_queue = &((FCFGServerTaskArg *)task->arg)->msg_queue;
+    config = msg_queue->config_array->rows + msg_queue->offset;
+    record_size = CONFIG_RECORD_SIZE(config);
+    expect_size = task->length + record_size;
+    if (expect_size > task->size) {
+        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+            return result;
+        }
+    }
+
+    header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
+    start_offset = msg_queue->offset;
+    msg_queue = &((FCFGServerTaskArg *)task->arg)->msg_queue;
+    while (msg_queue->offset < msg_queue->config_array->count) {
+        config = msg_queue->config_array->rows + msg_queue->offset;
+        record_size = CONFIG_RECORD_SIZE(config);
+        expect_size = task->length + record_size;
+        if (expect_size > task->size) {
+            break;
+        }
+
+        body_part = (FCFGProtoPushConfigBodyPart *)(task->data + task->length);
+        body_part->status = config->status;
+        body_part->name_len = config->name.len;
+        int2buff(config->value.len, body_part->value_len);
+        long2buff(config->version, body_part->version);
+        int2buff(config->create_time, body_part->create_time);
+        int2buff(config->update_time, body_part->update_time);
+        memcpy(body_part->name, config->name.str, config->name.len);
+        memcpy(body_part->name + config->name.len, config->value.str,
+                config->value.len);
+
+        task->length += record_size;
+        msg_queue->offset++;
+    }
+    msg_queue->agent_cfg_version = msg_queue->config_array->rows
+        [msg_queue->offset - 1].version;
+    config_count = msg_queue->offset - start_offset;
+    short2buff(config_count, header_part->count);
+
+    logInfo("file: "__FILE__", line: %d, client ip: %s, "
+            "send %d configs, agent_cfg_version: %"PRId64,
+            __LINE__, task->client_ip, config_count,
+            msg_queue->agent_cfg_version);
+
+    proto_header = (FCFGProtoHeader *)task->data;
+    int2buff(task->length - sizeof(FCFGProtoHeader), proto_header->body_len);
+    proto_header->cmd = FCFG_PROTO_PUSH_CONFIG;
+    proto_header->status = 0;
+    return sf_send_add_event(task);
+}
+
+int fcfg_server_push_configs(struct fast_task_info *task)
+{
+    FCFGServerTaskArg *task_arg;
+    FCFGConfigMessageQueue *msg_queue;
+    int config_count;
+
+    task_arg = (FCFGServerTaskArg *)task->arg;
+    msg_queue = &task_arg->msg_queue;
+
+    if (msg_queue->config_array == NULL || (msg_queue->config_array->version !=
+                task_arg->publisher->config_array->version))
+    {
+        msg_queue->config_array = task_arg->publisher->config_array;
+        config_count = msg_queue->config_array->count;
+        if (config_count > 0) {
+            if (msg_queue->config_array->rows[config_count - 1]
+                    .version == msg_queue->agent_cfg_version)
+            {
+                msg_queue->offset = config_count;
+            } else {
+                msg_queue->offset = find_config_version_closest_less_equal(
+                        msg_queue->config_array, msg_queue->agent_cfg_version) + 1;
+            }
+        } else {
+            msg_queue->offset = 0;
+        }
+    }
+
+    if (msg_queue->offset >= msg_queue->config_array->count) {
+        return 0;
+    }
+
+    task_arg->waiting_type |= FCFG_SERVER_TASK_WAITING_PUSH_RESP;
+    return fcfg_server_do_push_configs(task);
+}
+
+

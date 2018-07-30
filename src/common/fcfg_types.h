@@ -42,6 +42,7 @@ typedef struct {
     FCFGConfigEntry *rows;
     int alloc;
     int count;
+    int64_t version;
 } FCFGConfigArray;
 
 typedef struct fcfg_env_entry {

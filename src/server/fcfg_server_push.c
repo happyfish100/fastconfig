@@ -158,7 +158,6 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
 
     header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
     start_offset = msg_queue->offset;
-    msg_queue = &((FCFGServerTaskArg *)task->arg)->msg_queue;
     while (msg_queue->offset < msg_queue->config_array->count) {
         config = msg_queue->config_array->rows + msg_queue->offset;
         record_size = CONFIG_RECORD_SIZE(config);
@@ -187,8 +186,10 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     short2buff(config_count, header_part->count);
 
     logInfo("file: "__FILE__", line: %d, client ip: %s, "
-            "send %d configs, agent_cfg_version: %"PRId64,
+            "send %d configs, config offset: %d, total count: %d, "
+            "agent_cfg_version: %"PRId64,
             __LINE__, task->client_ip, config_count,
+            msg_queue->offset, msg_queue->config_array->count,
             msg_queue->agent_cfg_version);
 
     proto_header = (FCFGProtoHeader *)task->data;
@@ -233,5 +234,3 @@ int fcfg_server_push_configs(struct fast_task_info *task)
     task_arg->waiting_type |= FCFG_SERVER_TASK_WAITING_PUSH_RESP;
     return fcfg_server_do_push_configs(task);
 }
-
-

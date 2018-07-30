@@ -8,7 +8,7 @@ CONFIG_PATH = $(TARGET_CONF_PATH)
 
 ALL_OBJS = ../common/fcfg_proto.o fcfg_agent_func.o fcfg_agent_handler.o fcfg_agent_global.o
 
-ALL_PRGS = config_agentd
+ALL_PRGS = fcfg_agent
 
 all: $(ALL_PRGS)
 

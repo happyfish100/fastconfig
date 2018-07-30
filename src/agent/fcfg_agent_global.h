@@ -8,12 +8,15 @@
 #include "common/fcfg_types.h"
 
 typedef struct fcfg_agent_global_vars {
-    ConnectionInfo join_conn;
+    ConnectionInfo *join_conn;
+    char *config_file;
     struct shmcache_context shm_context;
-    char tmp_path[MAX_PATH_SIZE];
     char shm_config_file[MAX_PATH_SIZE];
     char env[FCFG_CONFIG_ENV_SIZE];
     char shm_version_key[128];
+    int network_timeout;
+    int connect_timeout;
+    int server_count;
 } FCFGAgentGlobalVars;
 
 #ifdef __cplusplus

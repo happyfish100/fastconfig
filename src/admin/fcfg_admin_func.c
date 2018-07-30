@@ -21,37 +21,6 @@ void fcfg_set_admin_join_req(char *buff,
     *body_len = sizeof(FCFGProtoAdminJoinReq) + secret_key_len + username_len;
 }
 
-int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
-        FCFGResponseInfo *resp_info, int network_timeout, int connect_timeout)
-{
-    int ret;
-    FCFGProtoHeader fcfg_header_resp_pro;
-
-    if ((ret = tcprecvdata_nb_ex(conn->sock, data,
-            len, network_timeout, NULL)) != 0) {
-        return ret;
-    }
-    if ((ret = tcprecvdata_nb_ex(conn->sock, &fcfg_header_resp_pro,
-            sizeof(FCFGProtoHeader), network_timeout, NULL)) != 0) {
-        return ret;
-    }
-    fcfg_proto_response_extract(&fcfg_header_resp_pro, resp_info);
-    return 0;
-}
-
-static void _get_conn_config (ConnectionInfo *conn, const char *config_server)
-{
-    char *buff[2];
-    char tmp_value[32];
-
-    strncpy(tmp_value, config_server, sizeof(tmp_value) - 1);
-    tmp_value[sizeof(tmp_value) - 1] = '\0';
-    splitEx(tmp_value, ':', buff, 2);
-    strncpy(conn->ip_addr, buff[0], sizeof(conn->ip_addr));
-    conn->port = atoi(buff[1]);
-    conn->sock = -1;
-}
-
 int fcfg_admin_load_config(const char *filename)
 {
     IniContext ini_context;

@@ -10,7 +10,7 @@ extern "C" {
 
 int fcfg_agent_load_config(const char *filename);
 int fcfg_proto_set_join_req(char *buff, char *env,
-        int64_t version);
+        int64_t version, int *req_len);
 int fcfg_extract_join_resp(FCFGJoinResp *join_resp_data,
         FCFGProtoAgentJoinResp *join_resp_pro);
 int fcfg_extract_push_config_header(
@@ -23,7 +23,7 @@ int fcfg_extract_push_config_body_data (
         FCFGPushConfigBodyPart *fcfg_push_body_data);
 void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
         FCFGResponseInfo *resp_info);
-
+int fcfg_agent_load_config(const char *filename);
 #define FCFG_AGENT_SHM_VERSION_KEY_SUFFIX   "shm_version_key"
 
 #ifdef __cplusplus

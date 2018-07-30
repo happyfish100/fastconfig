@@ -11,7 +11,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <pthread.h>
 #include "fastcommon/shared_func.h"
 #include "fastcommon/pthread_func.h"
 #include "fastcommon/process_ctrl.h"
@@ -19,46 +18,82 @@
 #include "fastcommon/sockopt.h"
 #include "fastcommon/sched_thread.h"
 #include "sf/sf_global.h"
-#include "sf/sf_nio.h"
 #include "sf/sf_service.h"
 #include "sf/sf_util.h"
 #include "common/fcfg_proto.h"
-#include "fcfg_agent_func.h"
+#include "fastcommon/sockopt.h"
 #include "fcfg_agent_handler.h"
+#include "fcfg_agent_func.h"
+#include "fcfg_agent_global.h"
 
+static bool show_usage = false;
 static bool daemon_mode = true;
+FCFGAgentGlobalVars g_agent_global_vars;
 static int setup_server_env(const char *config_filename);
-
-int main(int argc, char *argv[])
+static void usage(char *program)
 {
-    char *config_filename;
-    char *action;
+    fprintf(stderr, "Usage: %s options, the options as:\n"
+            "\t -h help\n"
+            "\t -c <config-filename>\n"
+            "\n", program);
+}
+
+static void parse_args(int argc, char **argv)
+{
+    int ch;
+    int found = 0;
+
+    while ((ch = getopt(argc, argv, "hc:")) != -1) {
+        found = 1;
+        switch (ch) {
+            case 'c':
+                g_agent_global_vars.config_file = optarg;
+                break;
+            case 'h':
+            default:
+                show_usage = true;
+                break;
+        }
+    }
+    if (found == 0) {
+        show_usage = true;
+    }
+}
+
+int main (int argc, char **argv)
+{
     char g_pid_filename[MAX_PATH_SIZE];
     pthread_t schedule_tid;
-    int wait_count;
+    int wait_count = 0;
+    char *action;
     bool stop;
     int r;
     failvars;
 
-    stop = false;
     if (argc < 2) {
-        sf_usage(argv[0]);
+        usage(argv[0]);
         return 1;
     }
-    config_filename = argv[1];
+    memset(&g_agent_global_vars, 0, sizeof(FCFGAgentGlobalVars));
+    parse_args(argc, argv);
+    if (show_usage) {
+        usage(argv[0]);
+        return 0;
+    }
     log_init2();
+    log_set_use_file_write_lock(true);
 
-    r = get_base_path_from_conf_file(config_filename, g_sf_global_vars.base_path,
-                                     sizeof(g_sf_global_vars.base_path));
-    gofailif(r, "base path error");
+    r = get_base_path_from_conf_file(g_agent_global_vars.config_file, g_sf_global_vars.base_path,
+            sizeof(g_sf_global_vars.base_path));
 
-    snprintf(g_pid_filename, sizeof(g_pid_filename), 
-             "%s/fcfg_agentd.pid", g_sf_global_vars.base_path);
+    gofailif (r, "get base path fail");
+    snprintf(g_pid_filename, sizeof(g_pid_filename),
+            "%s/fcfg_agent.pid", g_sf_global_vars.base_path);
 
     sf_parse_daemon_mode_and_action(argc, argv, &daemon_mode, &action);
     r = process_action(g_pid_filename, action, &stop);
     if (r == EINVAL) {
-        sf_usage(argv[0]);
+        usage(argv[0]);
         log_destroy();
         return 1;
     }
@@ -69,60 +104,30 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    r = setup_server_env(config_filename);
-    gofailif(r,"");
+    r = setup_server_env(g_agent_global_vars.config_file);
+     gofailif(r, "setup_server_env fail");
+     r = write_to_pid_file(g_pid_filename);
+     gofailif(r, "write pid error");
 
     r = sf_startup_schedule(&schedule_tid);
-    gofailif(r,"");
+    gofailif(r, "sf_startup_schedule fail");
 
-    r = sf_socket_server();
-    gofailif(r, "socket server error");
-    r=write_to_pid_file(g_pid_filename);
-    gofailif(r, "write pid error");
+    fcfg_agent_wait_config_server_loop();
 
-    r = fcfg_agent_handler_init();
-    gofailif(r,"encoder handler init error");
-
-    fcfg_proto_init();
-
-    r = fcfg_agent_shm_init();
-    gofailif(r,"fcfg_agent_shm_init error");
-
-    r = fcfg_agent_join();
-    gofailif(r,"fcfg_agent_join error");
-
-    r = sf_service_init(fcfg_agent_alloc_thread_extra_data, NULL,
-            NULL, fcfg_proto_set_body_length, fcfg_agent_deal_task,
-            fcfg_agent_task_finish_cleanup, NULL, 100, sizeof(FCFGProtoHeader),
-            0);
-    gofailif(r,"service init error");
-    sf_set_remove_from_ready_list(false);
-
-    sf_accept_loop();
     if (g_schedule_flag) {
         pthread_kill(schedule_tid, SIGINT);
     }
-    wait_count = 0;
-    while ((g_worker_thread_count != 0) || g_schedule_flag) {
+    while (g_schedule_flag) {
         usleep(10000);
         if (++wait_count > 1000) {
             lwarning("waiting timeout, exit!");
             break;
         }
     }
-
-    linfo("destroying.");
-    sf_service_destroy();
+FAIL_:
     delete_pid_file(g_pid_filename);
-    linfo("program exit normally.");
     log_destroy();
     return 0;
-
-FAIL_:
-    logfail();
-    lcrit("program exit abnomally");
-    log_destroy();
-    return eres;
 }
 
 static int setup_server_env(const char *config_filename)
@@ -145,7 +150,9 @@ static int setup_server_env(const char *config_filename)
     umask(0);
 
     result = sf_setup_signal_handler();
+    returnif(result);
 
+    result = fcfg_agent_shm_init();
     log_set_cache(true);
-    return result;
+    return 0;
 }

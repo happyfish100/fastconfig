@@ -174,6 +174,8 @@ void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
 void fcfg_free_config_array(FCFGConfigArray *array);
 void fcfg_free_env_array(FCFGEnvArray *array);
 
+void _get_conn_config (ConnectionInfo *conn, const char *config_server);
+
 static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
         const int expect_body_length, const char *filename, const int line)

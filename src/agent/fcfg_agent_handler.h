@@ -19,6 +19,7 @@ int fcfg_agent_join();
 int fcfg_agent_deal_task(struct fast_task_info *task);
 void fcfg_agent_task_finish_cleanup(struct fast_task_info *task);
 void *fcfg_agent_alloc_thread_extra_data(const int thread_index);
+int fcfg_agent_wait_config_server_loop ();
 
 #ifdef __cplusplus
 }

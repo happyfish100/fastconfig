@@ -15,20 +15,16 @@ int fcfg_agent_load_config(const char *filename)
 {
     IniContext ini_context;
     int result;
+    int server_count;
+    int i;
     char *pDataPath;
+    char *config_server[FCFG_CONFIG_SERVER_COUNT_MAX];
 
     memset(&ini_context, 0, sizeof(IniContext));
     if ((result=iniLoadFromFile(filename, &ini_context)) != 0) {
         logError("file: "__FILE__", line: %d, "
                 "load conf file \"%s\" fail, ret code: %d",
                 __LINE__, filename, result);
-        return result;
-    }
-
-    if ((result=sf_load_config("fcfg_agentd", filename, &ini_context,
-                    FCFG_SERVER_DEFAULT_INNER_PORT,
-                    FCFG_SERVER_DEFAULT_OUTER_PORT)) != 0)
-    {
         return result;
     }
 
@@ -40,20 +36,6 @@ int fcfg_agent_load_config(const char *filename)
     snprintf(g_agent_global_vars.shm_config_file, MAX_PATH_SIZE, "%s",
              pDataPath);
 
-    pDataPath = iniGetStrValue(NULL, "server_ip", &ini_context);
-    if (pDataPath == NULL || *pDataPath == '\0') {
-        lerr("get server_ip from file:%s", filename);
-        return ENOENT;
-    }
-    snprintf(g_agent_global_vars.join_conn.ip_addr, sizeof(g_agent_global_vars.join_conn.ip_addr), "%s",
-             pDataPath);
-    g_agent_global_vars.join_conn.port = iniGetIntValue(NULL, "server_port",
-            &ini_context, 0);
-    if (g_agent_global_vars.join_conn.port == 0) {
-        lerr("get server_port from file:%s", filename);
-        return ENOENT;
-    }
-    g_agent_global_vars.join_conn.sock = -1;
 
     pDataPath = iniGetStrValue(NULL, "config_env", &ini_context);
     if (pDataPath == NULL || *pDataPath == '\0') {
@@ -65,25 +47,56 @@ int fcfg_agent_load_config(const char *filename)
     snprintf(g_agent_global_vars.shm_version_key, sizeof(g_agent_global_vars.shm_version_key),
              "%s_%s", g_agent_global_vars.env, FCFG_AGENT_SHM_VERSION_KEY_SUFFIX);
 
-    iniFreeContext(&ini_context);
 
+    g_sf_global_vars.sync_log_buff_interval = iniGetIntValue(NULL,
+            "sync_log_buff_interval", &ini_context,
+            SYNC_LOG_BUFF_DEF_INTERVAL);
+    if (g_sf_global_vars.sync_log_buff_interval <= 0) {
+        g_sf_global_vars.sync_log_buff_interval = SYNC_LOG_BUFF_DEF_INTERVAL;
+    }
+
+    g_sf_global_vars.rotate_error_log = iniGetBoolValue(NULL, "rotate_error_log",
+            &ini_context, false);
+    g_sf_global_vars.log_file_keep_days = iniGetIntValue(NULL, "log_file_keep_days",
+            &ini_context, 0);
+
+    load_log_level(&ini_context);
+    if ((result=log_set_prefix(g_sf_global_vars.base_path, "fcfg_agent")) != 0) {
+        return result;
+    }
+
+    server_count = iniGetValues(NULL, "config_server",
+            &ini_context, config_server, FCFG_CONFIG_SERVER_COUNT_MAX);
+    if (server_count <= 0) {
+        lerr("get config_server fail %d", server_count);
+        return -1;
+    }
+    g_agent_global_vars.server_count = server_count;
+    g_agent_global_vars.join_conn = (ConnectionInfo *)malloc(server_count *
+            sizeof(ConnectionInfo));
+    if (g_agent_global_vars.join_conn == NULL) {
+        lerr("malloc fail");
+        return 1;
+    }
+    for (i = 0; i < server_count; i ++) {
+        _get_conn_config(g_agent_global_vars.join_conn + i, config_server[i]);
+        linfo("config_server: %s", config_server[i]);
+    }
     linfo("base_path: %s, "
           "shm_config_file: %s, "
           "env: %s, "
-          "shm_version_key: %s, "
-          "server_ip:%s, "
-          "server_port:%d",
+          "shm_version_key: %s",
           g_sf_global_vars.base_path,
           g_agent_global_vars.shm_config_file,
           g_agent_global_vars.env,
-          g_agent_global_vars.shm_version_key,
-          g_agent_global_vars.join_conn.ip_addr,
-          g_agent_global_vars.join_conn.port);
+          g_agent_global_vars.shm_version_key);
 
     sf_log_config_ex(NULL);
+
+    iniFreeContext(&ini_context);
     return 0;
 }
-int fcfg_proto_set_join_req(char *buff, char *env, int64_t version)
+int fcfg_proto_set_join_req(char *buff, char *env, int64_t version, int *req_len)
 {
     FCFGProtoHeader *fcfg_header_pro;
     FCFGProtoAgentJoinReq *fcfg_join_req_pro;
@@ -95,6 +108,7 @@ int fcfg_proto_set_join_req(char *buff, char *env, int64_t version)
     fcfg_join_req_pro = (FCFGProtoAgentJoinReq *)(buff + sizeof(FCFGProtoHeader));
     memcpy(fcfg_join_req_pro->env, env, sizeof(fcfg_join_req_pro->env));
     long2buff(version, fcfg_join_req_pro->agent_cfg_version);
+    *req_len = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoAgentJoinReq);
 
     return 0;
 }
@@ -129,7 +143,7 @@ int fcfg_check_push_config_body_len(FCFGPushConfigHeader *fcfg_push_header,
     for (i = 0; i < count; i ++) {
         name_len = fcfg_push_body_pro->name_len;
         value_len = buff2int(fcfg_push_body_pro->value_len);
-        body_part_len += size + name_len + value_len;;
+        body_part_len += size + name_len + value_len;
         if (body_part_len > len) {
             return -1;
         }
@@ -153,7 +167,11 @@ int fcfg_extract_push_config_body_data (
     fcfg_push_body_data->name_len = fcfg_push_body_pro->name_len;
     fcfg_push_body_data->value_len = buff2int(fcfg_push_body_pro->value_len);
     fcfg_push_body_data->version = buff2long(fcfg_push_body_pro->version);
+    fcfg_push_body_data->create_time = buff2int(fcfg_push_body_pro->create_time);
+    fcfg_push_body_data->update_time =
+        buff2int(fcfg_push_body_pro->update_time);
 
     return 0;
 }
+
 

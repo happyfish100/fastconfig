@@ -29,12 +29,6 @@ int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
         FCFGEnvEntry *rows, int *env_size);
 int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
         FCFGConfigEntry *rows, int *config_len);
-
-#define FCFG_NETWORK_TIMEOUT_DEFAULT    30
-#define FCFG_CONNECT_TIMEOUT_DEFAULT    30
-
-#define FCFG_CONFIG_SERVER_COUNT_MAX    10
-
 #ifdef __cplusplus
 }
 #endif

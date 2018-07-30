@@ -1,5 +1,3 @@
-//fcfg_agent_handler.c
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -24,21 +22,6 @@
 #include "fcfg_agent_global.h"
 #include "fcfg_agent_func.h"
 #include "fcfg_agent_handler.h"
-
-int fcfg_agent_handler_init()
-{
-    return 0;
-}
-
-int fcfg_agent_handler_destroy()
-{   
-    return 0;
-}
-
-void fcfg_agent_task_finish_cleanup(struct fast_task_info *task)
-{
-    sf_task_finish_clean_up(task);
-}
 
 static int fcfg_agent_set_config_version(int64_t version)
 {
@@ -88,8 +71,8 @@ static int fcfg_agent_get_config_version()
 }
 
 
-static int fcfg_do_task_push_config(struct fast_task_info *task,
-        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+static int fcfg_set_push_config(const char *data,
+        const int body_len)
 {
     int ret;
     int i;
@@ -102,13 +85,13 @@ static int fcfg_do_task_push_config(struct fast_task_info *task,
     struct shmcache_key_info key;
     struct shmcache_value_info value;
 
-    fcfg_push_header_pro = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
+    fcfg_push_header_pro = (FCFGProtoPushConfigHeader *)(data + sizeof(FCFGProtoHeader));
     fcfg_extract_push_config_header(fcfg_push_header_pro, &fcfg_push_header);
 
     fcfg_push_body_pro = (FCFGProtoPushConfigBodyPart *)(fcfg_push_header_pro +
             1);
     ret = fcfg_check_push_config_body_len(&fcfg_push_header, fcfg_push_body_pro,
-            request->body_len - sizeof(FCFGProtoPushConfigHeader));
+            body_len - sizeof(FCFGProtoPushConfigHeader));
     if (ret) {
         lerr("fcfg_check_push_config_body_len fail.count:%d",
                 fcfg_push_header.count);
@@ -117,14 +100,13 @@ static int fcfg_do_task_push_config(struct fast_task_info *task,
     size = sizeof(FCFGPushConfigBodyPart);
     for (i = 0; i < fcfg_push_header.count; i++) {
         fcfg_extract_push_config_body_data(fcfg_push_body_pro, &fcfg_push_body_data);
-        value.data = fcfg_push_body_pro->value;
-        value.length = fcfg_push_body_data.value_len;
-        value.options = SHMCACHE_SERIALIZER_STRING;
-        value.expires = SHMCACHE_NEVER_EXPIRED;
-        key.data = fcfg_push_body_pro->value + fcfg_push_body_data.value_len;
+        key.data = fcfg_push_body_pro->name;
         key.length = fcfg_push_body_data.name_len;
-
         if (fcfg_push_body_data.status == FCFG_CONFIG_STATUS_NORMAL) {
+            value.data = fcfg_push_body_pro->name + fcfg_push_body_data.name_len;
+            value.length = fcfg_push_body_data.value_len;
+            value.options = SHMCACHE_SERIALIZER_STRING;
+            value.expires = SHMCACHE_NEVER_EXPIRED;
             ret = shmcache_set_ex(&g_agent_global_vars.shm_context, &key, &value);
         } else {
             ret = shmcache_delete(&g_agent_global_vars.shm_context, &key);
@@ -147,185 +129,188 @@ static int fcfg_do_task_push_config(struct fast_task_info *task,
     return 0;
 }
 
-static int fcfg_proto_deal_push_config (struct fast_task_info *task,
-        const FCFGRequestInfo *request, FCFGResponseInfo *response)
-{
-    int result = 0;
-    if ((result=FCFG_PROTO_CHECK_MIN_BODY_LEN(task, request, response,
-                    sizeof(FCFGProtoPushConfigHeader))) != 0) {
-        return result;
-    }
-
-    if ((result=fcfg_do_task_push_config(task, request, response)) != 0) {
-        return result;
-    }
-
-    response->response_done = true;
-    response->cmd = FCFG_PROTO_PUSH_RESP;
-    return 0;
-}
-
-int fcfg_agent_deal_task(struct fast_task_info *task)
-{
-    FCFGProtoHeader *proto_header;
-    FCFGRequestInfo request;
-    FCFGResponseInfo response;
-    int result;
-    int r;
-    int64_t tbegin;
-    int time_used;
-
-    tbegin = get_current_time_ms();
-    response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
-    response.body_len = 0;
-    response.error.length = 0;
-    response.error.message[0] = '\0';
-    response.response_done = false;
-
-    request.cmd = ((FCFGProtoHeader *)task->data)->cmd;
-    request.body_len = task->length - sizeof(FCFGProtoHeader);
-    do {
-        switch (request.cmd) {
-            case FCFG_PROTO_ACTIVE_TEST_REQ:
-                result = fcfg_proto_deal_actvie_test(task, &request, &response);
-                break;
-            case FCFG_PROTO_PUSH_CONFIG:
-                result = fcfg_proto_deal_push_config(task, &request, &response);
-                break;
-            default:
-                response.error.length = sprintf(response.error.message,
-                    "unkown cmd: %d", request.cmd);
-                lerr("client ip: %s, unknow cmd: %d, body length: %d",
-                        task->client_ip, request.cmd, request.body_len);
-                result = -EINVAL;
-                break;
-        }
-    } while(0);
-
-    proto_header = (FCFGProtoHeader *)task->data;
-    if (!response.response_done) {
-        response.body_len = response.error.length;
-        if (response.error.length > 0) {
-            memcpy(task->data + sizeof(FCFGProtoHeader),
-                    response.error.message, response.error.length);
-        }
-    }
-
-    proto_header->status = result >= 0 ? result : -1 * result;
-    proto_header->cmd = response.cmd;
-    int2buff(response.body_len, proto_header->body_len);
-    task->length = sizeof(FCFGProtoHeader) + response.body_len;
-
-    r = sf_send_add_event(task);
-    time_used = (int)(get_current_time_ms() - tbegin);
-    if (time_used > 1000) {
-        lwarning("timed used to process a request is %d ms, "
-                "cmd: %d, req body len: %d, resp body len: %d",
-                time_used, request.cmd,
-                request.body_len, response.body_len);
-    }
-
-    ldebug("req cmd: %d, req body_len: %d, "
-            "resp cmd: %d, status: %d, resp body_len: %d, "
-            "time used: %d ms",
-            request.cmd, request.body_len,
-            response.cmd, proto_header->status,
-            response.body_len, time_used);
-
-    return r == 0 ? result : r;
-}
 int fcfg_agent_shm_init ()
 {
     return shmcache_init_from_file(&g_agent_global_vars.shm_context,
             g_agent_global_vars.shm_config_file);
 }
 
-int fcfg_agent_join ()
+static int fcfg_admin_check_response(ConnectionInfo *join_conn,
+        FCFGResponseInfo *resp_info, int network_timeout, unsigned char resp_cmd)
+{
+    if (resp_info->cmd == resp_cmd && resp_info->status == 0) {
+        return 0;
+    } else {
+        if (resp_info->body_len) {
+            tcprecvdata_nb_ex(join_conn->sock, resp_info->error.message,
+                    resp_info->body_len, network_timeout, NULL);
+        } else {
+            resp_info->error.message[0] = '\0';
+        }
+        return 1;
+    }
+
+}
+int fcfg_send_agent_join_request(ConnectionInfo *join_conn, int64_t version)
 {
     int ret;
-    char buff[128];
-    int64_t version;
-    FCFGProtoHeader fcfg_header_resp_pro;
+    char buff[1024];
+    int req_len;
     FCFGResponseInfo resp_info;
-    FCFGJoinResp join_resp_data;
+    int network_timeout = g_agent_global_vars.network_timeout;
+    int connect_timeout = g_agent_global_vars.connect_timeout;
+
+    fcfg_proto_set_join_req(buff, g_agent_global_vars.env, version, &req_len);
+    ret = send_and_recv_response_header(join_conn, buff, req_len, &resp_info,
+            network_timeout, connect_timeout);
+    if (ret) {
+        lerr("send_and_recv_response_header fail. ret:%d, %s",
+                ret, strerror(ret));
+        return ret;
+    }
+    ret = fcfg_admin_check_response (join_conn, &resp_info, network_timeout, FCFG_PROTO_AGENT_JOIN_RESP);
+    if (ret) {
+        lerr("agent join server fail. %s "
+             "conn: %s:%d",
+                resp_info.error.message, join_conn->ip_addr, join_conn->port);
+    }
+
+    return ret;
+}
+
+int fcfg_agent_send_header_resp(ConnectionInfo *join_conn, unsigned char resp_cmd)
+{
+    FCFGProtoHeader fcfg_header_resp_pro; 
+    memset(&fcfg_header_resp_pro, 0, sizeof(FCFGProtoHeader));
+    fcfg_header_resp_pro.cmd = resp_cmd;
+    return tcpsenddata_nb(join_conn->sock, &fcfg_header_resp_pro,
+                    sizeof(FCFGProtoHeader), g_agent_global_vars.network_timeout);
+}
+
+int fcfg_agent_recv_server_active_test (ConnectionInfo *join_conn)
+{
+    return fcfg_agent_send_header_resp(join_conn, FCFG_PROTO_ACTIVE_TEST_RESP);
+}
+int fcfg_agent_recv_server_psuh_config (ConnectionInfo *join_conn, int body_len)
+{
+    int ret;
+    char buff[256 * 1024];
+
+    while (g_sf_global_vars.continue_flag) {
+        ret = tcprecvdata_nb_ex(join_conn->sock, buff,
+                        body_len, g_agent_global_vars.network_timeout, NULL);
+        if (ret == 0 || ret != ETIMEDOUT) {
+            break;
+        }
+        lerr ("tcprecvdata_nb_ex ret:%d, %s", ret, strerror(ret));
+        usleep(100000);
+    }
+    fcfg_set_push_config(buff, body_len);
+
+    return fcfg_agent_send_header_resp(join_conn, FCFG_PROTO_PUSH_RESP);
+}
+
+int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
+{
+    int ret;
+    FCFGResponseInfo resp_info;
+    FCFGProtoHeader fcfg_header_resp_pro;
+
+    if ((ret = tcprecvdata_nb_ex(join_conn->sock, &fcfg_header_resp_pro,
+                    sizeof(FCFGProtoHeader), g_agent_global_vars.network_timeout, NULL)) != 0) {
+        return ret;
+    }
+
+    fcfg_proto_response_extract(&fcfg_header_resp_pro,&resp_info);
+    switch (fcfg_header_resp_pro.cmd) {
+        case FCFG_PROTO_ACTIVE_TEST_REQ:
+            ret = fcfg_agent_recv_server_active_test(join_conn);
+            break;
+        case FCFG_PROTO_PUSH_CONFIG:
+            ret = fcfg_agent_recv_server_psuh_config(join_conn,
+                    resp_info.body_len);
+            break;
+        default:
+            lerr ("get push config error cmd:%d", fcfg_header_resp_pro.cmd);
+            ret = -1;
+            break;
+    }
+
+    return ret;
+}
+static int fcfg_agent_do_conn_config_server (ConnectionInfo **conn)
+{
+    int ret;
+    int server_index;
+    ConnectionInfo *join_conn;
+    int index;
+
+    index = 0;
+    srand(time(NULL));
+    server_index = rand() % g_agent_global_vars.server_count;
+    while (index < g_agent_global_vars.server_count) {
+        join_conn = g_agent_global_vars.join_conn + server_index;
+        if ((ret = conn_pool_connect_server(join_conn,
+                        g_agent_global_vars.connect_timeout)) != 0) {
+            lerr("conn_pool_connect_server fail. server index[%d] %s:%d, ret:%d, %s",
+                    server_index,
+                    join_conn->ip_addr,
+                    join_conn->port,
+                    ret, strerror(ret));
+            server_index = (server_index + 1) % g_agent_global_vars.server_count;
+            index ++;
+        } else {
+            /* connect success */
+            *conn = join_conn;
+            break;
+        }
+    }
+
+    return ret;
+}
+int fcfg_agent_wait_config_server_loop ()
+{
+    int ret;
+    int need_join;
+    int64_t version;
+    ConnectionInfo *join_conn = NULL;
 
     version = fcfg_agent_get_config_version();
 
+    ret = 0;
     while (g_sf_global_vars.continue_flag) {
-        if (g_agent_global_vars.join_conn.sock >= 0) {
-            conn_pool_disconnect_server(&g_agent_global_vars.join_conn);
-        }
-        ret = conn_pool_connect_server(&g_agent_global_vars.join_conn, g_sf_global_vars.connect_timeout);
-        if (ret) {
-            lerr ("join server conn_pool_connect_server fail:%d, %s", ret, strerror(ret));
-            sleep(1);
-            continue;
-        }
-        fcfg_proto_set_join_req(buff, g_agent_global_vars.env, version);
-
-        ret = tcpsenddata_nb(g_agent_global_vars.join_conn.sock, buff,
-                sizeof(FCFGProtoHeader) + sizeof(FCFGProtoAgentJoinReq), g_sf_global_vars.network_timeout);
-        if (ret) {
-            lerr("join server tcpsenddata_nb fail.:%d, %s\n", ret, strerror(ret));
-            sleep(1);
-            continue;
-        }
-        ret = tcprecvdata_nb_ex(g_agent_global_vars.join_conn.sock, &fcfg_header_resp_pro,
-                sizeof(FCFGProtoHeader), g_sf_global_vars.network_timeout, NULL);
-        if (ret) {
-            lerr("join server tcprecvdata_nb_ex fail.:%d, %s\n", ret, strerror(ret));
-            sleep(1);
-            continue;
-        }
-        fcfg_proto_response_extract(&fcfg_header_resp_pro, &resp_info);
-        if (resp_info.cmd != FCFG_PROTO_AGENT_JOIN_RESP) {
-            if (resp_info.body_len) {
-                ret = tcprecvdata_nb_ex(g_agent_global_vars.join_conn.sock, resp_info.error.message,
-                        resp_info.body_len, g_sf_global_vars.network_timeout, NULL);
-            } else {
-                resp_info.error.message[0] = '\0';
+        if (join_conn == NULL || (ret != 0 && ret != ETIMEDOUT)) {
+            if (join_conn && join_conn->sock >= 0) {
+                conn_pool_disconnect_server(join_conn);
             }
-            lerr("agent join response err. resp cmd:%d, error msg:%s",
-                    resp_info.cmd, resp_info.error.message);
-            sleep(1);
-            continue;
-        } else {
-            if (resp_info.body_len) {
-                ret = tcprecvdata_nb_ex(g_agent_global_vars.join_conn.sock, buff,
-                        resp_info.body_len, g_sf_global_vars.network_timeout, NULL);
-                if (ret) {
-                    lerr("join server tcprecvdata_nb_ex fail.err:%d, err info:%s\n",
-                            ret, strerror(ret));
-                    sleep(1);
-                    continue;
-                } else {
-                    fcfg_extract_join_resp(&join_resp_data,
-                            (FCFGProtoAgentJoinResp *)buff);
-                    linfo("join server success. current version: %"PRId64", resp version: %"PRId64,
-                            version, join_resp_data.center_cfg_version);
-                    conn_pool_disconnect_server(&g_agent_global_vars.join_conn);
-                    if (join_resp_data.center_cfg_version < version) {
-                        ret = shmcache_clear(&g_agent_global_vars.shm_context);
-                        if (ret) {
-                            lerr("shmcache_remove_all fail. %d, %s", ret,
-                                    strerror(ret));
-                            return ret;
-                        }
-                    }
-                    break;
-                }
-            } else {
-                lerr("join server resp_info.body_len is 0");
+            ret = fcfg_agent_do_conn_config_server(&join_conn);
+            if (ret) {
+                join_conn = NULL;
+                lerr ("join server conn_pool_connect_server fail:%d, %s", ret, strerror(ret));
                 sleep(1);
                 continue;
             }
+            need_join = 1;
+
+        }
+        if (need_join) {
+            ret = fcfg_send_agent_join_request(join_conn, version);
+            if (ret) {
+                lerr ("join server fcfg_send_agent_join_request fail.%d, %s", ret, strerror(ret));
+                sleep(1);
+                continue;
+            }
+            need_join = 0;
+        }
+        linfo("agent join server success.conn: %s:%d",
+                join_conn->ip_addr, join_conn->port);
+        ret = fcfg_agent_recv_server_push(join_conn);
+        if (ret) {
+            lerr ("fcfg_agent_recv_server_push fail");
+            continue;
         }
     }
 
     return 0;
 }
 
-void *fcfg_agent_alloc_thread_extra_data(const int thread_index)
-{
-    return NULL;
-}

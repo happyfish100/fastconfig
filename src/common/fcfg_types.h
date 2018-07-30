@@ -13,6 +13,11 @@
 #define FCFG_CONFIG_NAME_SIZE    65
 #define FCFG_CONFIG_VALUE_SIZE   (64 * 1024)
 
+#define FCFG_NETWORK_TIMEOUT_DEFAULT    30
+#define FCFG_CONNECT_TIMEOUT_DEFAULT    30
+
+#define FCFG_CONFIG_SERVER_COUNT_MAX    10
+
 typedef struct {
     unsigned char cmd;  //response command
     int body_len;       //response body length

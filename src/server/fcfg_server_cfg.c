@@ -22,6 +22,8 @@ static FCFGPublisherArray publisher_array = {NULL, 0, 0};
 
 static int64_t current_config_version = 0;
 
+static struct fast_mblock_man event_allocator;
+
 static int fcfg_server_cfg_free_config_array(void *args)
 {
     fcfg_server_dao_free_config_array((FCFGConfigArray *)args);
@@ -139,30 +141,42 @@ static int fcfg_server_cfg_reload_config_all(struct fcfg_mysql_context *context,
             old_array, 10 * g_sf_global_vars.network_timeout, false);
 }
 
+int fcfg_server_push_event(struct fast_task_info *task, const int type)
+{
+    FCFGServerPushEvent *event;
+    struct common_blocked_queue *push_queue;
+
+    event = (FCFGServerPushEvent *)fast_mblock_alloc_object(&event_allocator);
+    if (event == NULL) {
+        return ENOMEM;
+    }
+
+    event->task = task;
+    event->type = type;
+    event->task_version = __sync_add_and_fetch(
+            &((FCFGServerTaskArg *)task->arg)->task_version, 0);
+    push_queue = &((FCFGServerContext *)task->thread_data->arg)->push_queue;
+    return common_blocked_queue_push(push_queue, event);
+}
+
+void fcfg_server_free_event(FCFGServerPushEvent *event)
+{
+    fast_mblock_free_object(&event_allocator, event);
+}
+
 static int fcfg_server_cfg_notify(FCFGEnvPublisher *publisher)
 {
     FCFGServerTaskArg *task_arg;
     struct fast_task_info *task;
-    struct common_blocked_queue *push_queue;
-    FCFGServerPushEvent *event;
     int result;
 
     result = 0;
     pthread_mutex_lock(&publisher->lock);
     fc_list_for_each_entry(task_arg, &publisher->head, subscribe) {
         task = (struct fast_task_info *)((char *)task_arg - ALIGNED_TASK_INFO_SIZE);
-        push_queue = &((FCFGServerContext *)task->thread_data->arg)->push_queue;
-
-        event = (FCFGServerPushEvent *)fast_mblock_alloc_object(
-                &publisher->event_allocator);
-        if (event == NULL) {
-            result = ENOMEM;
-            break;
-        }
-
-        event->task = task;
-        event->task_version = __sync_add_and_fetch(&task_arg->task_version, 0);
-        if ((result=common_blocked_queue_push(push_queue, event)) != 0) {
+        if ((result=fcfg_server_push_event(task,
+                        FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG)) != 0)
+        {
             break;
         }
     }
@@ -332,6 +346,13 @@ int fcfg_server_cfg_init()
     if ((result=sched_add_entries(&scheduleArray)) != 0) {
         return result;
     }
+
+    if ((result=fast_mblock_init_ex(&event_allocator,
+                    sizeof(FCFGServerPushEvent), 10240, NULL, true)) != 0)
+    {
+        return result;
+    }
+
     return init_pthread_lock(&publisher_array.lock);
 }
 
@@ -389,15 +410,6 @@ int fcfg_server_cfg_add_publisher(const char *env, FCFGEnvPublisher **publisher)
     (*publisher)->config_array->version = __sync_add_and_fetch(
             &current_config_version, 1);
    
-    if ((result=fast_mblock_init_ex(&(*publisher)->event_allocator,
-                    sizeof(FCFGServerPushEvent), 1024, NULL, false)) != 0)
-    {
-        free((*publisher)->config_array);
-        free(*publisher);
-        *publisher = NULL;
-        return result;
-    }
-
     FC_INIT_LIST_HEAD(&(*publisher)->head);
     publisher_array.envs[publisher_array.count++] = *publisher;
     if (publisher_array.count > 1) {

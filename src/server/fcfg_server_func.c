@@ -116,6 +116,13 @@ int fcfg_server_load_config(const char *filename)
         g_server_global_vars.reload_interval_ms = FCFG_SERVER_DEFAULT_RELOAD_INTERVAL;
     }
 
+    g_server_global_vars.check_alive_interval = iniGetIntValue(NULL,
+            "check_alive_interval", &ini_context,
+            FCFG_SERVER_DEFAULT_CHECK_ALIVE_INTERVAL);
+    if (g_server_global_vars.check_alive_interval <= 0) {
+        g_server_global_vars.check_alive_interval = FCFG_SERVER_DEFAULT_CHECK_ALIVE_INTERVAL;
+    }
+
     g_server_global_vars.reload_all_configs_policy.min_version_changed =
         iniGetIntValue("reload_all_configs_policy",
                 "min_version_changed", &ini_context, 100);
@@ -144,6 +151,7 @@ int fcfg_server_load_config(const char *filename)
     snprintf(server_config_str, sizeof(server_config_str),
             "db config {host: %s, port: %d, user: %s, "
             "password: %s, database: %s}, reload_interval_ms: %d ms, "
+            "check_alive_interval: %d s, "
             "reload_all_configs_policy {min_version_changed: %d, "
             "min_interval: %d s, max_interval: %d s}",
             g_server_global_vars.db_config.host,
@@ -152,6 +160,7 @@ int fcfg_server_load_config(const char *filename)
             g_server_global_vars.db_config.password,
             g_server_global_vars.db_config.database,
             g_server_global_vars.reload_interval_ms,
+            g_server_global_vars.check_alive_interval,
             g_server_global_vars.reload_all_configs_policy.min_version_changed,
             g_server_global_vars.reload_all_configs_policy.min_interval,
             g_server_global_vars.reload_all_configs_policy.max_interval);

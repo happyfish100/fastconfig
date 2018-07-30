@@ -13,7 +13,8 @@
 #define FCFG_SERVER_DEFAULT_INNER_PORT  20000
 #define FCFG_SERVER_DEFAULT_OUTER_PORT  20000
 
-#define FCFG_SERVER_DEFAULT_RELOAD_INTERVAL  500
+#define FCFG_SERVER_DEFAULT_RELOAD_INTERVAL       500
+#define FCFG_SERVER_DEFAULT_CHECK_ALIVE_INTERVAL  300
 
 typedef struct fcfg_server_context {
     FCFGMySQLContext mysql_context;
@@ -25,7 +26,6 @@ typedef struct fcfg_env_publisher {
     int64_t current_version;
     struct fc_list_head head;   //subscribe task double chain
     pthread_mutex_t lock;
-    struct fast_mblock_man event_allocator;
     FCFGConfigArray *config_array;
 
     struct {
@@ -44,24 +44,32 @@ typedef struct fcfg_config_message_queue {
     int offset;
 } FCFGConfigMessageQueue;
 
+#define FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG   1
+#define FCFG_SERVER_EVENT_TYPE_ACTIVE_TEST   2
+
 #define FCFG_SERVER_TASK_WAITING_REQUEST          0
 #define FCFG_SERVER_TASK_WAITING_PUSH_RESP        1
 #define FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP 2
 
+#define FCFG_SERVER_TASK_WAITING_RESP (FCFG_SERVER_TASK_WAITING_PUSH_RESP | \
+        FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP)
+
 typedef struct fcfg_server_task_arg {
-    int64_t task_version;
+    volatile int64_t task_version;
 
     struct fc_list_head subscribe;
     FCFGEnvPublisher *publisher;
 
     FCFGConfigMessageQueue msg_queue;
 
-    int waiting_type;
+    int last_recv_pkg_time;
+    short waiting_type;
 } FCFGServerTaskArg;
 
 typedef struct fcfg_server_push_event {
     struct fast_task_info *task;
     int64_t task_version;
+    int type;
 } FCFGServerPushEvent;
 
 #endif

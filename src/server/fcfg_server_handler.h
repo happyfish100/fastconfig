@@ -18,6 +18,8 @@ int fcfg_server_deal_task(struct fast_task_info *task);
 void fcfg_server_task_finish_cleanup(struct fast_task_info *task);
 int fcfg_server_recv_timeout_callback(struct fast_task_info *task);
 void *fcfg_server_alloc_thread_extra_data(const int thread_index);
+int fcfg_server_thread_loop(struct nio_thread_data *thread_data);
+
 
 #ifdef __cplusplus
 }

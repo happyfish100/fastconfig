@@ -26,6 +26,7 @@
 #include "fcfg_server_func.h"
 #include "fcfg_server_dao.h"
 #include "fcfg_server_cfg.h"
+#include "fcfg_server_push.h"
 #include "fcfg_server_handler.h"
 
 int fcfg_server_handler_init()
@@ -58,6 +59,22 @@ void fcfg_server_task_finish_cleanup(struct fast_task_info *task)
 
 int fcfg_server_recv_timeout_callback(struct fast_task_info *task)
 {
+    FCFGServerTaskArg *task_arg;
+    task_arg = (FCFGServerTaskArg *)task->arg;
+    if ((task_arg->waiting_type & FCFG_SERVER_TASK_WAITING_RESP) != 0) {
+        logWarning("file: "__FILE__", line: %d, "
+                "client ip: %s, waiting type: %d, "
+                "recv timeout", __LINE__, task->client_ip,
+                task_arg->waiting_type);
+        return ETIMEDOUT;
+    }
+
+    if (g_current_time - task_arg->last_recv_pkg_time >=
+            g_server_global_vars.check_alive_interval)
+    {
+        return fcfg_server_push_event(task, FCFG_SERVER_EVENT_TYPE_ACTIVE_TEST);
+    }
+
     return 0;
 }
 
@@ -137,6 +154,7 @@ int fcfg_server_deal_task(struct fast_task_info *task)
     int r;
     int64_t tbegin;
     int time_used;
+    int expect_waiting_type;
 
     tbegin = get_current_time_ms();
     response.cmd = FCFG_PROTO_ACK;
@@ -145,6 +163,7 @@ int fcfg_server_deal_task(struct fast_task_info *task)
     response.error.message[0] = '\0';
     response.response_done = false;
 
+    ((FCFGServerTaskArg *)task->arg)->last_recv_pkg_time = g_current_time;
     request.cmd = ((FCFGProtoHeader *)task->data)->cmd;
     request.body_len = task->length - sizeof(FCFGProtoHeader);
     do {
@@ -154,7 +173,26 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                 result = fcfg_proto_deal_actvie_test(task, &request, &response);
                 break;
             case FCFG_PROTO_PUSH_RESP:
-                break;
+            case FCFG_PROTO_ACTIVE_TEST_RESP:
+                if (request.cmd == FCFG_PROTO_PUSH_RESP) {
+                    expect_waiting_type = FCFG_SERVER_TASK_WAITING_PUSH_RESP;
+                } else {
+                    expect_waiting_type = FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP;
+                }
+                if ((((FCFGServerTaskArg *)task->arg)->waiting_type &
+                            expect_waiting_type) == 0)
+                {
+                    lerr("client ip: %s, unknow expect cmd: %d, body length: %d",
+                            task->client_ip, request.cmd, request.body_len);
+                    return -EINVAL;
+                }
+
+                ((FCFGServerTaskArg *)task->arg)->waiting_type &= ~expect_waiting_type;
+                if (request.cmd == FCFG_PROTO_PUSH_RESP) {
+                    return fcfg_server_push_configs(task);
+                } else {
+                    return 0;
+                }
             case FCFG_PROTO_AGENT_JOIN_REQ:
                 result = fcfg_proto_deal_join(task, &request, &response);
                 break;
@@ -224,4 +262,68 @@ void *fcfg_server_alloc_thread_extra_data(const int thread_index)
     fcfg_server_dao_init(&thread_extra_data->mysql_context);
     common_blocked_queue_init_ex(&thread_extra_data->push_queue, 4096);
     return thread_extra_data;
+}
+
+static int fcfg_server_send_active_test(struct fast_task_info *task)
+{
+    FCFGProtoHeader *proto_header;
+
+    logInfo("file: "__FILE__", line: %d, "
+            "client ip: %s, send_active_test",
+            __LINE__, task->client_ip);
+
+    proto_header = (FCFGProtoHeader *)task->data;
+    int2buff(0, proto_header->body_len);
+    proto_header->cmd = FCFG_PROTO_ACTIVE_TEST_REQ;
+    proto_header->status = 0;
+    ((FCFGServerTaskArg *)task->arg)->waiting_type |=
+        FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP;
+    return sf_send_add_event(task);
+}
+
+int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
+{
+    struct common_blocked_queue *push_queue;
+    FCFGServerPushEvent *event;
+    FCFGServerTaskArg *task_arg;
+    int64_t task_version;
+    int unexpect_waiting_type;
+
+    push_queue = &((FCFGServerContext *)thread_data->arg)->push_queue;
+
+    while ((event=(FCFGServerPushEvent *)common_blocked_queue_try_pop(
+                    push_queue)) != NULL)
+    {
+        task_arg = (FCFGServerTaskArg *)event->task->arg;
+
+        task_version = __sync_add_and_fetch(&task_arg->task_version, 0);
+        if (event->task_version != task_version) {
+            logInfo("file: "__FILE__", line: %d, client ip: %s, "
+                    "task version changed, current task version: %"PRId64", "
+                    "task version in event: %"PRId64, __LINE__,
+                    event->task->client_ip, task_version, event->task_version);
+            fcfg_server_free_event(event);
+            continue;
+        }
+
+        if (event->type == FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG) {
+            unexpect_waiting_type = FCFG_SERVER_TASK_WAITING_PUSH_RESP;
+        } else {
+            unexpect_waiting_type = FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP;
+        }
+
+        if ((sf_client_sock_in_read_stage(event->task) && event->task->offset == 0) &&
+                (task_arg->waiting_type & unexpect_waiting_type) == 0)
+        {
+            if (event->type == FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG) {
+                fcfg_server_push_configs(event->task);
+            } else {
+                fcfg_server_send_active_test(event->task);
+            }
+        }
+
+        fcfg_server_free_event(event);
+    }
+
+    return 0;
 }

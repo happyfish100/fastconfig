@@ -24,6 +24,8 @@ typedef struct fcfg_server_global_vars {
 
     int reload_interval_ms;
 
+    int check_alive_interval;
+
     FCFGServerReloadAllConfigsPolicy reload_all_configs_policy;
 
 } FCFGServerGlobalVars;

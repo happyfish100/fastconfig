@@ -15,8 +15,6 @@ extern "C" {
 int fcfg_server_push_init();
 int fcfg_server_push_destroy();
 
-int fcfg_server_thread_loop(struct nio_thread_data *thread_data);
-
 int fcfg_server_push_configs(struct fast_task_info *task);
 
 #ifdef __cplusplus

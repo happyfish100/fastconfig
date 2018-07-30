@@ -135,14 +135,15 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
 
     FCFGConfigMessageQueue *msg_queue;
     FCFGConfigEntry *config;
+    FCFGProtoHeader *proto_header;
     FCFGProtoPushConfigHeader *header_part;
     FCFGProtoPushConfigBodyPart *body_part;
     int result;
     int start_offset;
     int record_size;
     int expect_size;
+    int config_count;
 
-    header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
     task->length = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoPushConfigHeader);
 
     msg_queue = &((FCFGServerTaskArg *)task->arg)->msg_queue;
@@ -155,6 +156,7 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
         }
     }
 
+    header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
     start_offset = msg_queue->offset;
     msg_queue = &((FCFGServerTaskArg *)task->arg)->msg_queue;
     while (msg_queue->offset < msg_queue->config_array->count) {
@@ -179,11 +181,20 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
         task->length += record_size;
         msg_queue->offset++;
     }
-
-    short2buff(msg_queue->offset - start_offset, header_part->count);
     msg_queue->agent_cfg_version = msg_queue->config_array->rows
         [msg_queue->offset - 1].version;
+    config_count = msg_queue->offset - start_offset;
+    short2buff(config_count, header_part->count);
 
+    logInfo("file: "__FILE__", line: %d, client ip: %s, "
+            "send %d configs, agent_cfg_version: %"PRId64,
+            __LINE__, task->client_ip, config_count,
+            msg_queue->agent_cfg_version);
+
+    proto_header = (FCFGProtoHeader *)task->data;
+    int2buff(task->length - sizeof(FCFGProtoHeader), proto_header->body_len);
+    proto_header->cmd = FCFG_PROTO_PUSH_CONFIG;
+    proto_header->status = 0;
     return sf_send_add_event(task);
 }
 
@@ -223,35 +234,4 @@ int fcfg_server_push_configs(struct fast_task_info *task)
     return fcfg_server_do_push_configs(task);
 }
 
-int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
-{
-    struct common_blocked_queue *push_queue;
-    FCFGServerPushEvent *event;
-    FCFGServerTaskArg *task_arg;
-    int64_t task_version;
 
-    push_queue = &((FCFGServerContext *)thread_data->arg)->push_queue;
-
-    while ((event=(FCFGServerPushEvent *)common_blocked_queue_try_pop(
-                    push_queue)) != NULL)
-    {
-        task_arg = (FCFGServerTaskArg *)event->task->arg;
-
-        task_version = __sync_add_and_fetch(&task_arg->task_version, 0);
-        if (event->task_version != task_version) {
-            logInfo("file: "__FILE__", line: %d, "
-                    "task version changed, current task version: %"PRId64", "
-                    "task version in event: %"PRId64, __LINE__,
-                    task_version, event->task_version);
-            continue;
-        }
-
-        if ((sf_client_sock_in_read_stage(event->task) && event->task->offset == 0) &&
-                (task_arg->waiting_type & FCFG_SERVER_TASK_WAITING_PUSH_RESP) == 0)
-        {
-            fcfg_server_push_configs(event->task);
-        }
-    }
-
-    return 0;
-}

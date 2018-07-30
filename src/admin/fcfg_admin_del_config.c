@@ -107,7 +107,7 @@ int fcfg_admin_del_config (ConnectionInfo *join_conn)
 int main (int argc, char **argv)
 {
     int ret;
-    ConnectionInfo *join_conn;
+    ConnectionInfo *join_conn = NULL;
 
     if (argc < 7) {
         usage(argv[0]);
@@ -125,13 +125,11 @@ int main (int argc, char **argv)
     if (ret) {
         fprintf(stderr, "fcfg_admin_load_config fail:%s, ret:%d, %s\n",
                 g_fcfg_admin_del_vars.config_file, ret, strerror(ret));
-        log_destroy();
-        return ret;
+        goto END;
     }
     ret = fcfg_do_conn_config_server(&join_conn);
     if (ret) {
-        log_destroy();
-        return ret;
+        goto END;
     }
 
     if ((ret = fcfg_send_admin_join_request(join_conn,
@@ -142,7 +140,8 @@ int main (int argc, char **argv)
     }
 
     ret = fcfg_admin_del_config(join_conn);
+END:
     fcfg_disconn_config_server(join_conn);
     log_destroy();
-    return 0;
+    return ret;
 }

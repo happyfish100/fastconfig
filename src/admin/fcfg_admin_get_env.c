@@ -64,7 +64,8 @@ void fcfg_set_admin_get_env(char *buff,
 
 static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array)
 {
-    int size;
+    int ret;
+    int env_size;
     FCFGProtoGetEnvResp *get_env_resp = (FCFGProtoGetEnvResp *)buff;
 
     array->count = 1;
@@ -75,26 +76,14 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array
         fcfg_free_env_array(array);
         return ENOMEM;
     }
+    ret = fcfg_admin_env_set_entry(get_env_resp, array->rows, &env_size);
 
-    array->rows->env.len = get_env_resp->env_len;
-    array->rows->create_time = buff2int(get_env_resp->create_time);
-    array->rows->update_time = buff2int(get_env_resp->update_time);
-
-    size = array->rows->env.len;
-    if ((size + sizeof(FCFGProtoGetEnvResp)) != len) {
-        fprintf(stderr, "fcfg_admin_extract_to_array len err: %d:%d",
-                size + (int)sizeof(FCFGProtoGetEnvResp), len);
+    if (ret || (env_size != len)) {
+        fprintf(stderr, "file: "__FILE__", line: %d, "
+                "fcfg_admin_env_set_entry fail. ret:%d, env_size: %d, len: %d",
+                __LINE__, ret, env_size, len);
         return -1;
     }
-    array->rows->env.str = (char *)malloc(size + 1);
-    if (array->rows->env.str == NULL) {
-        fprintf(stderr, "file: "__FILE__", line: %d, "
-                "malloc %d bytes fail", __LINE__, size + 1);
-        fcfg_free_env_array(array);
-        return ENOMEM;
-    }
-    strncpy(array->rows->env.str, get_env_resp->env, array->rows->env.len);
-    array->rows->env.str[array->rows->env.len] = '\0';
 
     return 0;
 }
@@ -162,7 +151,7 @@ int fcfg_admin_get_env (FCFGEnvArray *array, ConnectionInfo *join_conn)
 int main (int argc, char **argv)
 {
     int ret;
-    ConnectionInfo *join_conn;
+    ConnectionInfo *join_conn = NULL;
     FCFGEnvArray array;
     memset(&array, 0, sizeof(FCFGEnvArray));
 
@@ -182,27 +171,26 @@ int main (int argc, char **argv)
     if (ret) {
         fprintf(stderr, "fcfg_admin_load_config fail:%s, ret:%d, %s\n",
                 g_fcfg_admin_get_env.config_file, ret, strerror(ret));
-        log_destroy();
-        return ret;
+        goto END;
     }
 
     ret = fcfg_do_conn_config_server(&join_conn);
     if (ret) {
-        log_destroy();
-        return ret;
+        goto END;
     }
 
     if ((ret = fcfg_send_admin_join_request(join_conn,
             g_fcfg_admin_vars.network_timeout,
             g_fcfg_admin_vars.connect_timeout)) != 0) {
-        log_destroy();
-        return ret;
+        goto END;
     }
 
     ret = fcfg_admin_get_env(&array, join_conn);
 
+END:
     fcfg_disconn_config_server(join_conn);
+    fcfg_free_env_array(&array);
     log_destroy();
-    return 0;
+    return ret;
 }
 

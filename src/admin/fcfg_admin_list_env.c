@@ -14,10 +14,10 @@
 #include "common/fcfg_proto.h"
 #include "fastcommon/sockopt.h"
 #include "fcfg_admin_func.h"
-#include "fcfg_admin_get_config.h"
+#include "fcfg_admin_list_env.h"
 
 static bool show_usage = false;
-FCFGAdminGetGlobal g_fcfg_admin_get_vars;
+FCFGAdminListEnvGlobal g_fcfg_admin_list_env;
 static void usage(char *program)
 {
     fprintf(stderr, "Usage: %s options, the options as:\n"
@@ -25,6 +25,7 @@ static void usage(char *program)
             "\t -c <config-filename>\n"
             "\t -e <config-env>\n"
             "\t -n <config-name>\n"
+            "\t -l <limit>\n"
             "\n", program);
 }
 
@@ -33,17 +34,14 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:n:")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
-                g_fcfg_admin_get_vars.config_file = optarg;
+                g_fcfg_admin_list_env.config_file = optarg;
                 break;
             case 'e':
-                g_fcfg_admin_get_vars.config_env = optarg;
-                break;
-            case 'n':
-                g_fcfg_admin_get_vars.config_name = optarg;
+                g_fcfg_admin_list_env.config_env = optarg;
                 break;
             case 'h':
             default:
@@ -56,68 +54,76 @@ static void parse_args(int argc, char **argv)
     }
 }
 
-void fcfg_set_admin_get_config(char *buff,
-        int *body_len)
+int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array)
 {
-    FCFGProtoGetConfigReq *get_config_req = (FCFGProtoGetConfigReq *)buff;
-    unsigned char env_len = strlen(g_fcfg_admin_get_vars.config_env);
-    unsigned char name_len = strlen(g_fcfg_admin_get_vars.config_name);
-    get_config_req->env_len = env_len;
-    get_config_req->name_len = name_len;
-    memcpy(get_config_req->env,
-           g_fcfg_admin_get_vars.config_env,
-           env_len);
-    memcpy(get_config_req->env + env_len, g_fcfg_admin_get_vars.config_name,
-           name_len);
-    *body_len = sizeof(FCFGProtoGetConfigReq) + env_len + name_len;
-}
-
-int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
-{
+    int env_size;
     int size;
+    int index;
     int ret;
-    FCFGProtoGetConfigResp *get_config_resp = (FCFGProtoGetConfigResp *)buff;
+    short count;
+    FCFGProtoListEnvRespHeader *list_env_resp_header_proto;
+    FCFGProtoListEnvRespBodyPart *list_env_resp_body_proto;
 
-    array->count = 1;
-    array->rows = (FCFGConfigEntry *)malloc(sizeof(FCFGConfigEntry));
+    list_env_resp_header_proto = (FCFGProtoListEnvRespHeader *)buff;
+    count = buff2short(list_env_resp_header_proto->count);
+    list_env_resp_body_proto = (FCFGProtoListEnvRespBodyPart *)
+        (list_env_resp_header_proto + 1);
+
+    array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry) * count);
     if (array->rows == NULL) {
         fprintf(stderr, "file: "__FILE__", line: %d, "
-                "malloc %ld bytes fail", __LINE__, sizeof(FCFGConfigEntry));
+                "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvEntry));
+        fcfg_free_env_array(array);
         return ENOMEM;
     }
+    memset(array->rows, 0, sizeof(FCFGEnvEntry) * count);
 
-    ret = fcfg_admin_config_set_entry(get_config_resp, array->rows, &size);
+    size = sizeof(FCFGProtoListEnvRespHeader);
+    for (index = 0; index < count; index ++) {
+        ret = fcfg_admin_env_set_entry(
+                (FCFGProtoGetEnvResp *)(list_env_resp_body_proto + index),
+                array->rows + index,
+                &env_size);
+        if (ret) {
+            break;
+        }
+        size += env_size;
+        array->count ++;
+    }
     if (ret || (size != len)) {
-        fprintf(stderr, "fcfg_admin_config_set_entry fail"
-                " ret:%d, size:%d, len:%d", ret, size, len); 
+        fprintf(stderr, "file: "__FILE__", line: %d, "
+                "fcfg_admin_env_set_entry fail ret:%d, size: %d, len: %d\n",
+                __LINE__, ret, size, len);
         return -1;
     }
+
     return 0;
 }
 
-int fcfg_admin_get_config_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGConfigArray *array)
+int fcfg_admin_list_env_response(ConnectionInfo *join_conn,
+        FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvArray *array)
 {
-    char buff[FCFG_CONFIG_VALUE_SIZE + 1024];
+    char buff[2048];
     int ret;
     if (resp_info->body_len == 0) {
         return -1;
     }
     if (resp_info->body_len > sizeof(buff)) {
-        fprintf(stderr, "body_len is too long %d", resp_info->body_len);
+        fprintf(stderr, "body_len is too long %d\n", resp_info->body_len);
         return -1;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
-        fprintf(stderr, "tcprecvdata_nb_ex fail %d", resp_info->body_len);
+        fprintf(stderr, "tcprecvdata_nb_ex fail %d\n", resp_info->body_len);
         return -1;
     }
 
     return fcfg_admin_extract_to_array(buff, resp_info->body_len, array);
 }
 
-int fcfg_admin_get_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
+
+int fcfg_admin_list_env (FCFGEnvArray *array, ConnectionInfo *join_conn)
 {
     int ret;
     char buff[1024];
@@ -125,10 +131,9 @@ int fcfg_admin_get_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
     int size;
     FCFGResponseInfo resp_info;
     FCFGProtoHeader *fcfg_header_proto;
-
     fcfg_header_proto = (FCFGProtoHeader *)buff;
-    fcfg_set_admin_get_config(buff + sizeof(FCFGProtoHeader), &body_len);
-    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_GET_CONFIG_REQ, body_len);
+    body_len = 0;
+    fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_LIST_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
@@ -137,14 +142,17 @@ int fcfg_admin_get_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
                 ret, strerror(ret));
         return ret;
     }
-    ret = fcfg_admin_check_response(join_conn, &resp_info,
-            g_fcfg_admin_vars.network_timeout, FCFG_PROTO_GET_CONFIG_RESP);
+    ret = fcfg_admin_check_response(join_conn,
+            &resp_info, g_fcfg_admin_vars.network_timeout, FCFG_PROTO_LIST_ENV_RESP);
     if (ret) {
-        fprintf(stderr, "get config fail.err info: %s\n",
+        fprintf(stderr, "list config fail.err info: %s\n",
                 resp_info.error.message);
     } else {
-        ret = fcfg_admin_get_config_response(join_conn, &resp_info,
+        ret = fcfg_admin_list_env_response(join_conn, &resp_info,
                 g_fcfg_admin_vars.network_timeout, array);
+        if (ret) {
+            fprintf(stderr, "fcfg_admin_list_env_response fail\n");
+        }
     }
 
     if (ret == 0) {
@@ -157,7 +165,8 @@ int main (int argc, char **argv)
 {
     int ret;
     ConnectionInfo *join_conn = NULL;
-    FCFGConfigArray array;
+    FCFGEnvArray array;
+    memset(&array, 0, sizeof(FCFGEnvArray));
 
     if (argc < 7) {
         usage(argv[0]);
@@ -169,12 +178,13 @@ int main (int argc, char **argv)
         return 0;
     }
 
+    g_fcfg_admin_list_env.limit = FCFG_ADMIN_LIST_REQUEST_MAX_COUNT;
     log_init2();
 
-    ret = fcfg_admin_load_config(g_fcfg_admin_get_vars.config_file);
+    ret = fcfg_admin_load_config(g_fcfg_admin_list_env.config_file);
     if (ret) {
         fprintf(stderr, "fcfg_admin_load_config fail:%s, ret:%d, %s\n",
-                g_fcfg_admin_get_vars.config_file, ret, strerror(ret));
+                g_fcfg_admin_list_env.config_file, ret, strerror(ret));
         goto END;
     }
 
@@ -189,11 +199,11 @@ int main (int argc, char **argv)
         goto END;
     }
 
-    ret = fcfg_admin_get_config(&array, join_conn);
+    ret = fcfg_admin_list_env(&array, join_conn);
 
 END:
     fcfg_disconn_config_server(join_conn);
-    fcfg_free_config_array(&array);
+    fcfg_free_env_array(&array);
     log_destroy();
     return ret;
 }

@@ -17,7 +17,7 @@
 #include "fcfg_admin_list_config.h"
 
 static bool show_usage = false;
-FCFGAdminListConfigGlobal g_fcfg_admin_list_vars;
+FCFGAdminListConfigGlobal g_fcfg_admin_list_config;
 static void usage(char *program)
 {
     fprintf(stderr, "Usage: %s options, the options as:\n"
@@ -38,16 +38,16 @@ static void parse_args(int argc, char **argv)
         found = 1;
         switch (ch) {
             case 'c':
-                g_fcfg_admin_list_vars.config_file = optarg;
+                g_fcfg_admin_list_config.config_file = optarg;
                 break;
             case 'e':
-                g_fcfg_admin_list_vars.config_env = optarg;
+                g_fcfg_admin_list_config.config_env = optarg;
                 break;
             case 'n':
-                g_fcfg_admin_list_vars.config_name = optarg;
+                g_fcfg_admin_list_config.config_name = optarg;
                 break;
             case 'l':
-                g_fcfg_admin_list_vars.limit = atoi(optarg);
+                g_fcfg_admin_list_config.limit = atoi(optarg);
                 break;
             case 'h':
             default:
@@ -63,73 +63,70 @@ static void parse_args(int argc, char **argv)
 void fcfg_set_admin_list_config(char *buff,
         int *body_len, int offset, int count)
 {
-    int index;
-    unsigned char env_len = strlen(g_fcfg_admin_list_vars.config_env);
+    FCFGProtoListConfigReq *list_config_req = (FCFGProtoListConfigReq *)buff;
+    unsigned char env_len = strlen(g_fcfg_admin_list_config.config_env);
     unsigned char name_len = 0;
-    if (g_fcfg_admin_list_vars.config_name) {
-        name_len = strlen(g_fcfg_admin_list_vars.config_name);
+
+    if (g_fcfg_admin_list_config.config_name) {
+        name_len = strlen(g_fcfg_admin_list_config.config_name);
     }
 
-    index = 0;
-    *(buff + index) = env_len;
-    index += 1;
-    *(buff + index) = name_len;
-    index += 1;
-    short2buff(offset, buff + index);
-    index += 2;
-    short2buff(count, buff + index);
-    index += 2;
+    list_config_req->env_len = env_len;
+    list_config_req->name_len = name_len;
+    short2buff(offset, list_config_req->limit.offset);
+    short2buff(count, list_config_req->limit.count);
 
-    if (name_len) {
-        memcpy(buff + index,
-                g_fcfg_admin_list_vars.config_name,
-                name_len);
-        index += name_len;
-    }
-    memcpy(buff + index, g_fcfg_admin_list_vars.config_env,
+    memcpy(list_config_req->env, g_fcfg_admin_list_config.config_env,
            env_len);
-    index += env_len;
+    if (name_len) {
+        memcpy(list_config_req->env + env_len,
+                g_fcfg_admin_list_config.config_name,
+                name_len);
+    }
 
-    *body_len = index;
+    *body_len = env_len + name_len + sizeof(FCFGProtoListConfigReq);
 }
 
 int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
 {
     int size;
+    int config_size;
     int index;
-    FCFGConfigEntry *rows;
+    short count;
+    int ret;
+    FCFGProtoListConfigRespBodyPart *list_config_resp_body_proto;
+    FCFGProtoListConfigRespHeader *list_config_resp_header_proto =
+        (FCFGProtoListConfigRespHeader *)buff;
+    count = buff2short(list_config_resp_header_proto->count);
+    if (count <= 0) {
+        fprintf(stderr, "list config response count %d", count);
+        return 0;
+    }
 
-    index = 0;
-    rows = array->rows + array->count;
-    while (index < len) {
-        rows->status = *(buff + index);
-        index += 1;
-        rows->name.len = *(buff + index);
-        index += 1;
-        rows->value.len = buff2int(buff + index);
-        index += 4;
-        rows->version = buff2long(buff + index); 
-        index += 8;
-        rows->create_time = buff2int(buff + index);
-        index += 4;
-        rows->update_time = buff2int(buff + index);
-        index += 4;
+    list_config_resp_body_proto =
+        (FCFGProtoListConfigRespBodyPart *)(list_config_resp_header_proto + 1);
+    array->rows = (FCFGConfigEntry *)malloc(sizeof(FCFGConfigEntry) * count);
+    if (array->rows == NULL) {
+        fprintf(stderr, "file: "__FILE__", line: %d, "
+                "malloc %ld bytes fail", __LINE__, sizeof(FCFGConfigEntry));
+        return ENOMEM;
+    }
+    memset(array->rows, 0, sizeof(FCFGConfigEntry) * count);
 
-        size = rows->name.len + rows->value.len;
-        rows->name.str = (char *)malloc(size + 2);
-        if (rows->name.str == NULL) {
-            fprintf(stderr, "file: "__FILE__", line: %d, "
-                    "malloc %d bytes fail", __LINE__, size + 2);
-            fcfg_free_config_array(array);
-            return ENOMEM;
+    size = sizeof(FCFGProtoListConfigRespHeader);
+    for (index = 0; index < count; index ++) {
+        ret = fcfg_admin_config_set_entry(list_config_resp_body_proto + index,
+                array->rows + index, &config_size);
+        if (ret) {
+            break;
         }
-        memset(rows->name.str, 0, size + 2);
-        memcpy(rows->name.str, buff + index, rows->name.len + 1);
-        index += rows->name.len + 1;
-        rows->value.str =  rows->name.str + rows->name.len + 1;
-        memcpy(rows->value.str, buff + index, rows->value.len + 1);
-        index += rows->value.len + 1;
+        size += config_size;
         array->count ++;
+    }
+    if (ret || (size != len)) {
+        fprintf(stderr, "fcfg_admin_config_set_entry fail"
+                " ret:%d, size:%d, len:%d", ret, size, len);
+        return -1;
     }
 
     return 0;
@@ -168,17 +165,7 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
     int i;
     FCFGResponseInfo resp_info;
     FCFGProtoHeader *fcfg_header_proto;
-
-    array->rows = (FCFGConfigEntry *)malloc(sizeof(FCFGConfigEntry) * g_fcfg_admin_list_vars.limit);
-    if (array->rows == NULL) {
-        fprintf(stderr, "file: "__FILE__", line: %d, "
-                "malloc %ld bytes fail", __LINE__, sizeof(FCFGConfigEntry));
-        fcfg_free_config_array(array);
-        return ENOMEM;
-    }
-    memset(array->rows, 0, sizeof(FCFGConfigEntry) * g_fcfg_admin_list_vars.limit);
-
-    offset = g_fcfg_admin_list_vars.limit / FCFG_ADMIN_LIST_REQUEST_COUNT + 1;
+    offset = g_fcfg_admin_list_config.limit / FCFG_ADMIN_LIST_REQUEST_COUNT + 1;
     for (i = 0; i < offset; i ++) {
         fcfg_header_proto = (FCFGProtoHeader *)buff;
         fcfg_set_admin_list_config(buff + sizeof(FCFGProtoHeader), &body_len,
@@ -193,7 +180,8 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
             return ret;
         }
         ret = fcfg_admin_check_response(join_conn,
-                &resp_info, g_fcfg_admin_vars.network_timeout, FCFG_PROTO_LIST_ENV_RESP);
+                &resp_info, g_fcfg_admin_vars.network_timeout,
+                FCFG_PROTO_LIST_CONFIG_RESP);
         if (ret) {
             fprintf(stderr, "list config fail.err info: %s\n",
                     resp_info.error.message);
@@ -217,7 +205,7 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
 int main (int argc, char **argv)
 {
     int ret;
-    ConnectionInfo *join_conn;
+    ConnectionInfo *join_conn = NULL;
     FCFGConfigArray array;
     memset(&array, 0, sizeof(FCFGConfigArray));
 
@@ -231,35 +219,35 @@ int main (int argc, char **argv)
         return 0;
     }
 
-    if (g_fcfg_admin_list_vars.limit == 0) {
+    if (g_fcfg_admin_list_config.limit == 0) {
         fprintf(stderr, "limit is 0 !\n");
         return 0;
     }
     log_init2();
 
-    ret = fcfg_admin_load_config(g_fcfg_admin_list_vars.config_file);
+    ret = fcfg_admin_load_config(g_fcfg_admin_list_config.config_file);
     if (ret) {
         fprintf(stderr, "fcfg_admin_load_config fail:%s, ret:%d, %s\n",
-                g_fcfg_admin_list_vars.config_file, ret, strerror(ret));
-        log_destroy();
-        return ret;
+                g_fcfg_admin_list_config.config_file, ret, strerror(ret));
+        goto END;
     }
 
     ret = fcfg_do_conn_config_server(&join_conn);
     if (ret) {
-        log_destroy();
-        return ret;
+        goto END;
     }
 
     if ((ret = fcfg_send_admin_join_request(join_conn,
             g_fcfg_admin_vars.network_timeout,
             g_fcfg_admin_vars.connect_timeout)) != 0) {
-        log_destroy();
-        return ret;
+        goto END;
     }
 
     ret = fcfg_admin_list_config(&array, join_conn);
+
+END:
     fcfg_disconn_config_server(join_conn);
+    fcfg_free_config_array(&array);
     log_destroy();
     return 0;
 }

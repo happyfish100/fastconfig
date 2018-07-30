@@ -25,6 +25,10 @@ void fcfg_set_admin_header (FCFGProtoHeader *fcfg_header_proto,
 int fcfg_admin_load_config(const char *filename);
 int fcfg_do_conn_config_server (ConnectionInfo **conn);
 void fcfg_disconn_config_server (ConnectionInfo *conn);
+int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
+        FCFGEnvEntry *rows, int *env_size);
+int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
+        FCFGConfigEntry *rows, int *config_len);
 
 #define FCFG_NETWORK_TIMEOUT_DEFAULT    30
 #define FCFG_CONNECT_TIMEOUT_DEFAULT    30

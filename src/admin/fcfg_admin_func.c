@@ -194,7 +194,57 @@ int fcfg_do_conn_config_server (ConnectionInfo **conn)
 
 void fcfg_disconn_config_server (ConnectionInfo *conn)
 {
-    if (conn->sock >= 0) {
+    if (conn && conn->sock >= 0) {
         conn_pool_disconnect_server(conn);
     }
+}
+int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
+        FCFGEnvEntry *rows, int *env_size)
+{
+    int size;
+    rows->env.len = get_env_resp->env_len;
+    rows->create_time = buff2int(get_env_resp->create_time);
+    rows->update_time = buff2int(get_env_resp->update_time);
+
+    size = rows->env.len;
+    rows->env.str = (char *)malloc(size + 1);
+    if (rows->env.str == NULL) {
+        fprintf(stderr, "file: "__FILE__", line: %d, "
+                "malloc %d bytes fail", __LINE__, size + 1);
+        return ENOMEM;
+    }
+    strncpy(rows->env.str, get_env_resp->env, rows->env.len);
+    rows->env.str[rows->env.len] = '\0';
+
+    *env_size = size + sizeof(FCFGProtoGetEnvResp);
+    return 0;
+}
+
+int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
+        FCFGConfigEntry *rows, int *config_len)
+{
+    int size;
+    rows->status = get_config_resp->status;
+    rows->name.len = get_config_resp->name_len;
+    rows->value.len = buff2int(get_config_resp->value_len);
+    rows->version = buff2long(get_config_resp->version);
+    rows->create_time = buff2int(get_config_resp->create_time);
+    rows->update_time = buff2int(get_config_resp->update_time);
+
+    size = rows->name.len + rows->value.len;
+    rows->name.str = (char *)malloc(size + 2);
+    if (rows->name.str == NULL) {
+        fprintf(stderr, "file: "__FILE__", line: %d, "
+                "malloc %d bytes fail", __LINE__, size + 2);
+        return ENOMEM;
+    }
+    strncpy(rows->name.str, get_config_resp->name, rows->name.len);
+    rows->name.str[rows->name.len] = '\0';
+    strncpy(rows->value.str,
+           get_config_resp->name + rows->name.len + 1,
+           rows->value.len);
+    rows->value.str[rows->value.len] = '\0';
+    *config_len = sizeof(FCFGProtoGetConfigResp) + size;
+
+    return 0;
 }

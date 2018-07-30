@@ -20,6 +20,8 @@ typedef struct {
 
 static FCFGPublisherArray publisher_array = {NULL, 0, 0};
 
+static int64_t current_config_version = 0;
+
 static int fcfg_server_cfg_free_config_array(void *args)
 {
     fcfg_server_dao_free_config_array((FCFGConfigArray *)args);
@@ -62,6 +64,7 @@ static int check_alloc_config_array(FCFGConfigArray **array, const int inc)
     }
 
     new_array->count = 0;
+    new_array->version = __sync_add_and_fetch(&current_config_version, 1);
     if ((result=fcfg_server_dao_copy_config_array(*array, new_array)) != 0) {
         return result;
     }
@@ -129,6 +132,7 @@ static int fcfg_server_cfg_reload_config_all(struct fcfg_mysql_context *context,
         return result;
     }
 
+    new_array->version = __sync_add_and_fetch(&current_config_version, 1);
     old_array = publisher->config_array;
     publisher->config_array = new_array;
     return sched_add_delay_task(fcfg_server_cfg_free_config_array,
@@ -382,6 +386,8 @@ int fcfg_server_cfg_add_publisher(const char *env, FCFGEnvPublisher **publisher)
     }
     (*publisher)->config_array->alloc = (*publisher)->config_array->count = 0;
     (*publisher)->config_array->rows = NULL;
+    (*publisher)->config_array->version = __sync_add_and_fetch(
+            &current_config_version, 1);
    
     if ((result=fast_mblock_init_ex(&(*publisher)->event_allocator,
                     sizeof(FCFGServerPushEvent), 1024, NULL, false)) != 0)

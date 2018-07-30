@@ -25,6 +25,7 @@
 #include "fcfg_server_global.h"
 #include "fcfg_server_func.h"
 #include "fcfg_server_dao.h"
+#include "fcfg_server_cfg.h"
 #include "fcfg_server_handler.h"
 
 int fcfg_server_handler_init()
@@ -39,10 +40,25 @@ int fcfg_server_handler_destroy()
 
 void fcfg_server_task_finish_cleanup(struct fast_task_info *task)
 {
-    sf_task_finish_clean_up(task);
+    FCFGServerTaskArg *task_arg;
+
+    task_arg = (FCFGServerTaskArg *)task->arg;
+
+    fcfg_server_cfg_remove_subscriber(task);
+    task_arg->msg_queue.config_array = NULL;
+    task_arg->msg_queue.agent_cfg_version = 0;
+    task_arg->msg_queue.offset = 0;
+    task_arg->waiting_type = FCFG_SERVER_TASK_WAITING_REQUEST;
 
     __sync_add_and_fetch(&((FCFGServerTaskArg *)task->arg)->task_version, 1);
+    sf_task_finish_clean_up(task);
+
     logInfo("task_version: %"PRId64, ((FCFGServerTaskArg *)task->arg)->task_version);
+}
+
+int fcfg_server_recv_timeout_callback(struct fast_task_info *task)
+{
+    return 0;
 }
 
 static int fcfg_proto_deal_join(struct fast_task_info *task,
@@ -136,6 +152,8 @@ int fcfg_server_deal_task(struct fast_task_info *task)
             case FCFG_PROTO_ACTIVE_TEST_REQ:
                 response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
                 result = fcfg_proto_deal_actvie_test(task, &request, &response);
+                break;
+            case FCFG_PROTO_PUSH_RESP:
                 break;
             case FCFG_PROTO_AGENT_JOIN_REQ:
                 result = fcfg_proto_deal_join(task, &request, &response);

@@ -44,6 +44,10 @@ typedef struct fcfg_config_message_queue {
     int offset;
 } FCFGConfigMessageQueue;
 
+#define FCFG_SERVER_TASK_WAITING_REQUEST          0
+#define FCFG_SERVER_TASK_WAITING_PUSH_RESP        1
+#define FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP 2
+
 typedef struct fcfg_server_task_arg {
     int64_t task_version;
 
@@ -51,6 +55,8 @@ typedef struct fcfg_server_task_arg {
     FCFGEnvPublisher *publisher;
 
     FCFGConfigMessageQueue msg_queue;
+
+    int waiting_type;
 } FCFGServerTaskArg;
 
 typedef struct fcfg_server_push_event {

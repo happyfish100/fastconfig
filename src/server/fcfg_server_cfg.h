@@ -15,6 +15,7 @@ extern "C" {
 
     int fcfg_server_cfg_reload(struct fcfg_mysql_context *context);
 
+    void fcfg_server_cfg_remove_subscriber(struct fast_task_info *task);
 #ifdef __cplusplus
 }
 #endif

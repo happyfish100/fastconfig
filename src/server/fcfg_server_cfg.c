@@ -137,11 +137,15 @@ static int fcfg_server_cfg_reload_config_all(struct fcfg_mysql_context *context,
     new_array->version = __sync_add_and_fetch(&current_config_version, 1);
     old_array = publisher->config_array;
     publisher->config_array = new_array;
-    return sched_add_delay_task(fcfg_server_cfg_free_config_array,
-            old_array, 10 * g_sf_global_vars.network_timeout, false);
+    if (old_array != NULL) {
+        return sched_add_delay_task(fcfg_server_cfg_free_config_array,
+                old_array, 10 * g_sf_global_vars.network_timeout, false);
+    } else {
+        return 0;
+    }
 }
 
-int fcfg_server_push_event(struct fast_task_info *task, const int type)
+int fcfg_server_add_task_event(struct fast_task_info *task, const int type)
 {
     FCFGServerPushEvent *event;
     struct common_blocked_queue *push_queue;
@@ -174,7 +178,7 @@ static int fcfg_server_cfg_notify(FCFGEnvPublisher *publisher)
     pthread_mutex_lock(&publisher->lock);
     fc_list_for_each_entry(task_arg, &publisher->head, subscribe) {
         task = (struct fast_task_info *)((char *)task_arg - ALIGNED_TASK_INFO_SIZE);
-        if ((result=fcfg_server_push_event(task,
+        if ((result=fcfg_server_add_task_event(task,
                         FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG)) != 0)
         {
             break;
@@ -377,9 +381,12 @@ static FCFGEnvPublisher *fcfg_server_cfg_find_publisher(const char *env)
     return (found != NULL) ? *found : NULL;
 }
 
-int fcfg_server_cfg_add_publisher(const char *env, FCFGEnvPublisher **publisher)
+int fcfg_server_cfg_add_publisher(const char *env, struct fast_task_info *task,
+        FCFGEnvPublisher **publisher)
 {
     int result;
+    FCFGMySQLContext *mysql_context;
+
     if ((result=check_alloc_publisher_array(&publisher_array)) != 0) {
         return result;
     }
@@ -395,22 +402,16 @@ int fcfg_server_cfg_add_publisher(const char *env, FCFGEnvPublisher **publisher)
     memset(*publisher, 0, sizeof(FCFGEnvPublisher));
     (*publisher)->env = strdup(env);
     init_pthread_lock(&(*publisher)->lock);
+    FC_INIT_LIST_HEAD(&(*publisher)->head);
 
-    (*publisher)->config_array = (FCFGConfigArray *)malloc(sizeof(FCFGConfigArray));
-    if ((*publisher)->config_array == NULL) {
-        logError("file: "__FILE__", line: %d, "
-                "malloc %d bytes fail",
-                __LINE__, (int)sizeof(FCFGConfigArray));
+    mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
+    if ((result=fcfg_server_cfg_reload_by_env_all(mysql_context, *publisher)) != 0) {
+        free((*publisher)->env);
         free(*publisher);
         *publisher = NULL;
-        return ENOMEM;
+        return result;
     }
-    (*publisher)->config_array->alloc = (*publisher)->config_array->count = 0;
-    (*publisher)->config_array->rows = NULL;
-    (*publisher)->config_array->version = __sync_add_and_fetch(
-            &current_config_version, 1);
-   
-    FC_INIT_LIST_HEAD(&(*publisher)->head);
+    
     publisher_array.envs[publisher_array.count++] = *publisher;
     if (publisher_array.count > 1) {
         qsort(publisher_array.envs, publisher_array.count,
@@ -422,12 +423,12 @@ int fcfg_server_cfg_add_publisher(const char *env, FCFGEnvPublisher **publisher)
 
 int fcfg_server_cfg_add_subscriber(const char *env, struct fast_task_info *task)
 {
-    FCFGEnvPublisher *publisher;
     int result;
+    FCFGEnvPublisher *publisher;
 
     pthread_mutex_lock(&publisher_array.lock);
     if ((publisher=fcfg_server_cfg_find_publisher(env)) == NULL) {
-        result = fcfg_server_cfg_add_publisher(env, &publisher);
+        result = fcfg_server_cfg_add_publisher(env, task, &publisher);
     } else {
         result = 0;
     }

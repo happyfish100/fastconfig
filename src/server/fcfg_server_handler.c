@@ -72,7 +72,7 @@ int fcfg_server_recv_timeout_callback(struct fast_task_info *task)
     if (g_current_time - task_arg->last_recv_pkg_time >=
             g_server_global_vars.check_alive_interval)
     {
-        return fcfg_server_push_event(task, FCFG_SERVER_EVENT_TYPE_ACTIVE_TEST);
+        return fcfg_server_add_task_event(task, FCFG_SERVER_EVENT_TYPE_ACTIVE_TEST);
     }
 
     return 0;
@@ -86,7 +86,7 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     char env[FCFG_CONFIG_ENV_SIZE];
     int result;
     int64_t agent_cfg_version;
-    int64_t center_cfg_version = 0;  //TODO
+    int64_t center_cfg_version;
 
     if ((result=FCFG_PROTO_EXPECT_BODY_LEN(task, request, response,
                     sizeof(FCFGProtoAgentJoinReq))) != 0)
@@ -108,18 +108,30 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
         return EINVAL;
     }
 
+    if ((result=fcfg_server_cfg_add_subscriber(env, task)) != 0) {
+        return result;
+    }
+
     agent_cfg_version = buff2long(join_req->agent_cfg_version);
     logInfo("agent_cfg_version: %"PRId64, agent_cfg_version);
 
-    ((FCFGServerTaskArg *)task->arg)->msg_queue.agent_cfg_version = agent_cfg_version;
+    center_cfg_version = ((FCFGServerTaskArg *)task->arg)->publisher->current_version;
+    if (agent_cfg_version > center_cfg_version) {
+        logWarning("file: "__FILE__", line: %d, client ip: %s, "
+                "agent_cfg_version: %"PRId64" > center_cfg_version: %"PRId64,
+                __LINE__, task->client_ip, agent_cfg_version, center_cfg_version);
+    } else if (agent_cfg_version < center_cfg_version) {
+        result = fcfg_server_add_config_push_event(task);
+    }
 
+    ((FCFGServerTaskArg *)task->arg)->msg_queue.agent_cfg_version = agent_cfg_version;
     join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
     long2buff(center_cfg_version, join_resp->center_cfg_version);
 
     response->body_len = 8;
     response->cmd = FCFG_PROTO_AGENT_JOIN_RESP;
     response->response_done = true;
-    return 0;
+    return result;
 }
 
 static int fcfg_proto_deal_add_del_env(struct fast_task_info *task,
@@ -143,6 +155,34 @@ static int fcfg_proto_deal_add_del_env(struct fast_task_info *task,
     } else {
         return fcfg_server_dao_del_env(mysql_context, env);
     }
+}
+
+static int fcfg_proto_deal_push_config_resp(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    int result;
+    FCFGProtoPushResp *push_resp;
+    int64_t agent_cfg_version;
+    FCFGServerTaskArg *task_arg;
+
+    if ((result=FCFG_PROTO_EXPECT_BODY_LEN(task, request, response,
+                    sizeof(FCFGProtoPushResp))) != 0)
+    {
+        return result;
+    }
+
+    task_arg = (FCFGServerTaskArg *)task->arg;
+    push_resp = (FCFGProtoPushResp *)(task->data + sizeof(FCFGProtoHeader));
+    agent_cfg_version = buff2long(push_resp->agent_cfg_version);
+    if (agent_cfg_version != task_arg->msg_queue.agent_cfg_version) {
+        logInfo("file: "__FILE__", line: %d, client ip: %s, "
+                "response agent_cfg_version: %"PRId64" != %"
+                PRId64, __LINE__, task->client_ip, agent_cfg_version,
+                task_arg->msg_queue.agent_cfg_version);
+        return EINVAL;
+    }
+
+    return fcfg_server_push_configs(task);
 }
 
 int fcfg_server_deal_task(struct fast_task_info *task)
@@ -189,7 +229,7 @@ int fcfg_server_deal_task(struct fast_task_info *task)
 
                 ((FCFGServerTaskArg *)task->arg)->waiting_type &= ~expect_waiting_type;
                 if (request.cmd == FCFG_PROTO_PUSH_RESP) {
-                    return fcfg_server_push_configs(task);
+                    return fcfg_proto_deal_push_config_resp(task, &request, &response);
                 } else {
                     return 0;
                 }
@@ -272,6 +312,7 @@ static int fcfg_server_send_active_test(struct fast_task_info *task)
             "client ip: %s, send_active_test",
             __LINE__, task->client_ip);
 
+    task->length = sizeof(FCFGProtoHeader);
     proto_header = (FCFGProtoHeader *)task->data;
     int2buff(0, proto_header->body_len);
     proto_header->cmd = FCFG_PROTO_ACTIVE_TEST_REQ;
@@ -311,7 +352,6 @@ int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
         } else {
             unexpect_waiting_type = FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP;
         }
-
         if ((sf_client_sock_in_read_stage(event->task) && event->task->offset == 0) &&
                 (task_arg->waiting_type & unexpect_waiting_type) == 0)
         {

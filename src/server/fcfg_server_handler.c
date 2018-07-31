@@ -50,6 +50,7 @@ void fcfg_server_task_finish_cleanup(struct fast_task_info *task)
     task_arg->msg_queue.agent_cfg_version = 0;
     task_arg->msg_queue.offset = 0;
     task_arg->waiting_type = FCFG_SERVER_TASK_WAITING_REQUEST;
+    task_arg->joined = false;
 
     __sync_add_and_fetch(&((FCFGServerTaskArg *)task->arg)->task_version, 1);
     sf_task_finish_clean_up(task);
@@ -78,7 +79,7 @@ int fcfg_server_recv_timeout_callback(struct fast_task_info *task)
     return 0;
 }
 
-static int fcfg_proto_deal_join(struct fast_task_info *task,
+static int fcfg_proto_deal_agent_join(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response)
 {
     FCFGProtoAgentJoinReq *join_req;
@@ -130,9 +131,50 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
     long2buff(center_cfg_version, join_resp->center_cfg_version);
 
+    ((FCFGServerTaskArg *)task->arg)->joined = true;
     response->body_len = 8;
     response->cmd = FCFG_PROTO_AGENT_JOIN_RESP;
     response->response_done = true;
+    return result;
+}
+
+static int fcfg_proto_deal_admin_join(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    FCFGProtoAdminJoinReq *join_req;
+    string_t username;
+    string_t secret_key;
+    int result;
+
+    if ((result=FCFG_PROTO_EXPECT_BODY_LEN(task, request, response,
+                    sizeof(FCFGProtoAdminJoinReq))) != 0)
+    {
+        return result;
+    }
+
+    join_req = (FCFGProtoAdminJoinReq *)(task->data + sizeof(FCFGProtoHeader));
+
+    username.len = join_req->username_len;
+    secret_key.len = join_req->secret_key_len;
+    username.str = join_req->username;
+    secret_key.str = join_req->username + username.len;
+
+    if (!(fc_compare_string(&username, &g_server_global_vars.admin.username) == 0 &&
+            fc_compare_string(&secret_key, &g_server_global_vars.admin.secret_key) == 0))
+    {
+        response->error.length = sprintf(response->error.message,
+                "invalid username or secret_key");
+
+        logError("file: "__FILE__", line: %d, "
+                "client ip: %s, cmd: %d, %s. "
+                "username: %.*s, secret_key: %.*s",
+                __LINE__, task->client_ip, request->cmd,
+                response->error.message, username.len, username.str,
+                secret_key.len, secret_key.str);
+        return EINVAL;
+    }
+
+    ((FCFGServerTaskArg *)task->arg)->joined = true;
     return result;
 }
 
@@ -157,6 +199,93 @@ static int fcfg_proto_deal_add_del_env(struct fast_task_info *task,
     } else {
         return fcfg_server_dao_del_env(mysql_context, env);
     }
+}
+
+static int fcfg_proto_deal_get_env(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    FCFGMySQLContext *mysql_context;
+    FCFGProtoGetEnvResp *env_resp;
+    FCFGEnvEntry entry;
+    char *env;
+    int result;
+
+    if ((result=FCFG_PROTO_CHECK_BODY_LEN(task, request, response,
+                    1, FCFG_CONFIG_ENV_SIZE - 1)) != 0)
+    {
+        return result;
+    }
+
+    mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
+    env = task->data + sizeof(FCFGProtoHeader);
+    *(env + request->body_len) = '\0';
+
+    if ((result=fcfg_server_dao_get_env(mysql_context, env, &entry)) != 0) {
+        return result;
+    }
+
+    env_resp = (FCFGProtoGetEnvResp *)(task->data + sizeof(FCFGProtoHeader));
+    env_resp->env_len = entry.env.len;
+    int2buff(entry.create_time, env_resp->create_time);
+    int2buff(entry.update_time, env_resp->update_time);
+    memcpy(env_resp->env, entry.env.str, entry.env.len);
+
+    response->body_len = sizeof(FCFGProtoGetEnvResp) + entry.env.len;
+    response->cmd = FCFG_PROTO_GET_ENV_RESP;
+    response->response_done = true;
+    return 0;
+}
+
+static int fcfg_proto_deal_list_env(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    FCFGMySQLContext *mysql_context;
+    FCFGProtoListEnvRespHeader *resp_header;
+    FCFGProtoGetEnvResp *env_resp;
+    char *p;
+    FCFGEnvEntry *entry;
+    FCFGEnvEntry *end;
+    FCFGEnvArray array;
+    int result;
+    int expect_size;
+
+    if ((result=FCFG_PROTO_EXPECT_BODY_LEN(task, request, response, 0)) != 0) {
+        return result;
+    }
+
+    mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
+    if ((result=fcfg_server_dao_list_env(mysql_context, &array)) != 0) {
+        return result;
+    }
+
+    end = array.rows + array.count;
+    expect_size = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoListEnvRespHeader);
+    for (entry=array.rows; entry<end; entry++) {
+        expect_size += sizeof(FCFGProtoGetEnvResp) + entry->env.len;
+    }
+    if (expect_size > task->size) {
+        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+            return result;
+        }
+    }
+
+    p = task->data + sizeof(FCFGProtoHeader) + sizeof(FCFGProtoListEnvRespHeader);
+    for (entry=array.rows; entry<end; entry++) {
+        env_resp = (FCFGProtoGetEnvResp *)p;
+        env_resp->env_len = entry->env.len;
+        int2buff(entry->create_time, env_resp->create_time);
+        int2buff(entry->update_time, env_resp->update_time);
+        memcpy(env_resp->env, entry->env.str, entry->env.len);
+        
+        p += sizeof(FCFGProtoGetEnvResp) + entry->env.len;
+    }
+
+    resp_header = (FCFGProtoListEnvRespHeader *)(task->data + sizeof(FCFGProtoHeader));
+    short2buff(array.count, resp_header->count);
+    response->body_len = p - task->data;
+    response->cmd = FCFG_PROTO_LIST_ENV_RESP;
+    response->response_done = true;
+    return 0;
 }
 
 static int fcfg_proto_deal_push_config_resp(struct fast_task_info *task,
@@ -209,6 +338,18 @@ int fcfg_server_deal_task(struct fast_task_info *task)
     request.cmd = ((FCFGProtoHeader *)task->data)->cmd;
     request.body_len = task->length - sizeof(FCFGProtoHeader);
     do {
+        if (!(!((FCFGServerTaskArg *)task->arg)->joined &&
+                 (request.cmd == FCFG_PROTO_AGENT_JOIN_REQ ||
+                 request.cmd == FCFG_PROTO_ADMIN_JOIN_REQ)))
+        {
+            response.error.length = sprintf(response.error.message,
+                    "please join first");
+            lerr("client ip: %s, cmd: %d, %s",
+                    task->client_ip, request.cmd, response.error.message);
+            result = -EINVAL;
+            break;
+        }
+
         switch (request.cmd) {
             case FCFG_PROTO_ACTIVE_TEST_REQ:
                 response.cmd = FCFG_PROTO_ACTIVE_TEST_RESP;
@@ -239,13 +380,22 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                 task->offset = task->length = 0;
                 return result > 0 ? -1 * result : result;
             case FCFG_PROTO_AGENT_JOIN_REQ:
-                result = fcfg_proto_deal_join(task, &request, &response);
+                result = fcfg_proto_deal_agent_join(task, &request, &response);
+                break;
+            case FCFG_PROTO_ADMIN_JOIN_REQ:
+                result = fcfg_proto_deal_admin_join(task, &request, &response);
                 break;
             case FCFG_PROTO_ADD_ENV_REQ:
                 result = fcfg_proto_deal_add_del_env(task, &request, &response);
                 break;
             case FCFG_PROTO_DEL_ENV_REQ:
                 result = fcfg_proto_deal_add_del_env(task, &request, &response);
+                break;
+            case FCFG_PROTO_GET_ENV_REQ:
+                result = fcfg_proto_deal_get_env(task, &request, &response);
+                break;
+            case FCFG_PROTO_LIST_ENV_REQ:
+                result = fcfg_proto_deal_list_env(task, &request, &response);
                 break;
             default:
                 response.error.length = sprintf(response.error.message,

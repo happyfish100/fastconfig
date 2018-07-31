@@ -21,8 +21,8 @@ typedef struct fcfg_server_global_vars {
     } db_config;
 
     struct {
-        char *username;
-        char *secret_key;
+        string_t username;
+        string_t secret_key;
     } admin;
 
     FCFGEnvArray *env_array;

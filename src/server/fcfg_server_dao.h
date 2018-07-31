@@ -65,6 +65,9 @@ extern "C" {
 
     int fcfg_server_dao_del_env(FCFGMySQLContext *context, const char *env);
 
+    int fcfg_server_dao_get_env(FCFGMySQLContext *context, const char *env,
+            FCFGEnvEntry *entry);
+
     int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array);
 
     void fcfg_server_dao_free_env_array(FCFGEnvArray *array);

@@ -110,8 +110,11 @@ static int fcfg_server_load_admin_config(IniContext *ini_context)
         return ENOENT;
     }
 
-    lengths.username = strlen(username) + 1;
-    lengths.secret_key = strlen(secret_key) + 1;
+    g_server_global_vars.admin.username.len = strlen(username);
+    g_server_global_vars.admin.secret_key.len = strlen(secret_key);
+
+    lengths.username = g_server_global_vars.admin.username.len + 1;
+    lengths.secret_key = g_server_global_vars.admin.secret_key.len + 1;
 
     bytes = lengths.username + lengths.secret_key;
     buff = (char *)malloc(bytes);
@@ -122,14 +125,14 @@ static int fcfg_server_load_admin_config(IniContext *ini_context)
     }
 
     p = buff;
-    g_server_global_vars.admin.username = p;
+    g_server_global_vars.admin.username.str = p;
     p += lengths.username;
 
-    g_server_global_vars.admin.secret_key = p;
+    g_server_global_vars.admin.secret_key.str = p;
     p += lengths.secret_key;
 
-    memcpy(g_server_global_vars.admin.username, username, lengths.username);
-    memcpy(g_server_global_vars.admin.secret_key, secret_key, lengths.secret_key);
+    memcpy(g_server_global_vars.admin.username.str, username, lengths.username);
+    memcpy(g_server_global_vars.admin.secret_key.str, secret_key, lengths.secret_key);
     return 0;
 }
 
@@ -214,8 +217,8 @@ int fcfg_server_load_config(const char *filename)
             g_server_global_vars.db_config.user,
             g_server_global_vars.db_config.password,
             g_server_global_vars.db_config.database,
-            g_server_global_vars.admin.username,
-            g_server_global_vars.admin.secret_key,
+            g_server_global_vars.admin.username.str,
+            g_server_global_vars.admin.secret_key.str,
             g_server_global_vars.reload_interval_ms,
             g_server_global_vars.check_alive_interval,
             g_server_global_vars.reload_all_configs_policy.min_version_changed,

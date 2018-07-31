@@ -710,7 +710,8 @@ int fcfg_server_dao_del_env(FCFGMySQLContext *context, const char *env)
     return fcfg_server_dao_env_execute(context, delete_sql, env, NULL);
 }
 
-int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array)
+static int fcfg_server_dao_do_list_env(FCFGMySQLContext *context, const char *env,
+        FCFGEnvArray *array)
 {
     MYSQL_RES *mysql_result;
     MYSQL_ROW row;
@@ -718,11 +719,26 @@ int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array)
     FCFGEnvEntry  *end;
     int row_count;
     int bytes;
-    const char *select_sql = "SELECT env, UNIX_TIMESTAMP(create_time), "
+    int sql_len;
+    char select_sql[512];
+    
+    strcpy(select_sql, "SELECT env, UNIX_TIMESTAMP(create_time), "
         "UNIX_TIMESTAMP(update_time) FROM fast_environment "
-        "WHERE status = 0 ORDER BY env";
+        "WHERE status = 0");
+    sql_len = strlen(select_sql);
+    if (env != NULL) {
+        char escaped_env[2 * FCFG_CONFIG_ENV_SIZE];
+        mysql_real_escape_string_quote(&context->mysql, escaped_env,
+                env, strlen(env), '\'');
+        sql_len += sprintf(select_sql + sql_len, " AND env = '%s'",
+                escaped_env);
+    } else {
+        sql_len += sprintf(select_sql + sql_len, " ORDER BY env");
+    }
 
-    if (mysql_real_query(&context->mysql, select_sql, strlen(select_sql)) != 0) {
+    logInfo("do_list_env SQL: %s", select_sql);
+
+    if (mysql_real_query(&context->mysql, select_sql, sql_len) != 0) {
         logError("file: "__FILE__", line: %d, "
                 "call mysql_real_query fail, error info: %s, sql: %s",
                 __LINE__, mysql_error(&context->mysql), select_sql);
@@ -783,6 +799,34 @@ int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array)
         return EFAULT;
     }
 
+    return 0;
+}
+
+int fcfg_server_dao_list_env(FCFGMySQLContext *context, FCFGEnvArray *array)
+{
+    const char *env = NULL;
+    return fcfg_server_dao_do_list_env(context, env, array);
+}
+
+int fcfg_server_dao_get_env(FCFGMySQLContext *context, const char *env,
+        FCFGEnvEntry *entry)
+{
+    FCFGEnvArray array;
+    int result;
+
+    if ((result=fcfg_server_dao_do_list_env(context, env, &array)) != 0) {
+        return result;
+    }
+    if (array.count == 0) {
+        return ENOENT;
+    }
+
+    entry->env.len = strlen(env);
+    entry->env.str = (char *)env;
+    entry->create_time = array.rows[0].create_time;
+    entry->update_time = array.rows[0].update_time;
+
+    fcfg_server_dao_free_env_array(&array);
     return 0;
 }
 

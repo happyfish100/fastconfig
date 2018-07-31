@@ -64,6 +64,7 @@ typedef struct fcfg_server_task_arg {
 
     int last_recv_pkg_time;
     short waiting_type;
+    bool joined;
 } FCFGServerTaskArg;
 
 typedef struct fcfg_server_push_event {

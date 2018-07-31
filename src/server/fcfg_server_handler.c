@@ -113,8 +113,6 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     }
 
     agent_cfg_version = buff2long(join_req->agent_cfg_version);
-    logInfo("agent_cfg_version: %"PRId64, agent_cfg_version);
-
     center_cfg_version = ((FCFGServerTaskArg *)task->arg)->publisher->current_version;
     if (agent_cfg_version > center_cfg_version) {
         logWarning("file: "__FILE__", line: %d, client ip: %s, "
@@ -123,6 +121,10 @@ static int fcfg_proto_deal_join(struct fast_task_info *task,
     } else if (agent_cfg_version < center_cfg_version) {
         result = fcfg_server_add_config_push_event(task);
     }
+
+    logInfo("file: "__FILE__", line: %d, client ip: %s, "
+            "agent_cfg_version: %"PRId64", center_cfg_version: %"PRId64,
+            __LINE__, task->client_ip, agent_cfg_version, center_cfg_version);
 
     ((FCFGServerTaskArg *)task->arg)->msg_queue.agent_cfg_version = agent_cfg_version;
     join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
@@ -175,7 +177,7 @@ static int fcfg_proto_deal_push_config_resp(struct fast_task_info *task,
     push_resp = (FCFGProtoPushResp *)(task->data + sizeof(FCFGProtoHeader));
     agent_cfg_version = buff2long(push_resp->agent_cfg_version);
     if (agent_cfg_version != task_arg->msg_queue.agent_cfg_version) {
-        logInfo("file: "__FILE__", line: %d, client ip: %s, "
+        logError("file: "__FILE__", line: %d, client ip: %s, "
                 "response agent_cfg_version: %"PRId64" != %"
                 PRId64, __LINE__, task->client_ip, agent_cfg_version,
                 task_arg->msg_queue.agent_cfg_version);
@@ -229,10 +231,13 @@ int fcfg_server_deal_task(struct fast_task_info *task)
 
                 ((FCFGServerTaskArg *)task->arg)->waiting_type &= ~expect_waiting_type;
                 if (request.cmd == FCFG_PROTO_PUSH_RESP) {
-                    return fcfg_proto_deal_push_config_resp(task, &request, &response);
+                    result = fcfg_proto_deal_push_config_resp(task, &request, &response);
                 } else {
-                    return 0;
+                    result = 0;
                 }
+
+                task->offset = task->length = 0;
+                return result > 0 ? -1 * result : result;
             case FCFG_PROTO_AGENT_JOIN_REQ:
                 result = fcfg_proto_deal_join(task, &request, &response);
                 break;

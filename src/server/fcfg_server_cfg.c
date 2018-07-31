@@ -26,6 +26,7 @@ static struct fast_mblock_man event_allocator;
 
 static int fcfg_server_cfg_free_config_array(void *args)
 {
+    logInfo("free config array: %p", args);
     fcfg_server_dao_free_config_array((FCFGConfigArray *)args);
     free(args);
     return 0;
@@ -216,6 +217,14 @@ static int fcfg_server_cfg_reload_by_env_incr(struct fcfg_mysql_context *context
     }
     publisher->config_stat.version_changed.total_count++;
 
+    logInfo("file: "__FILE__", line: %d, reload_by_env_incr "
+            "env: %s, config count: %d, current_version: %"PRId64
+            ", version changed count %"PRId64", last count: %"PRId64,
+            __LINE__, publisher->env, publisher->config_array->count,
+            publisher->current_version, publisher->config_stat.
+            version_changed.total_count, publisher->config_stat.
+            version_changed.last_count);
+
     return fcfg_server_cfg_notify(publisher);
 }
 
@@ -225,6 +234,7 @@ static int fcfg_server_cfg_reload_by_env_all(struct fcfg_mysql_context *context,
     int result;
     int64_t old_version;
 
+    publisher->config_stat.last_reload_all_time = g_current_time;
     if ((result=fcfg_server_cfg_reload_config_all(context, publisher)) != 0) {
         return result;
     }
@@ -236,6 +246,11 @@ static int fcfg_server_cfg_reload_by_env_all(struct fcfg_mysql_context *context,
     } else {
         publisher->current_version = 0;
     }
+
+    logInfo("file: "__FILE__", line: %d, reload_by_env_all "
+            "env: %s, config count: %d, current_version: %"PRId64,
+            __LINE__, publisher->env, publisher->config_array->count,
+            publisher->current_version);
 
     if (publisher->current_version > old_version) {
         result = fcfg_server_cfg_notify(publisher);
@@ -264,7 +279,6 @@ int fcfg_server_cfg_reload(struct fcfg_mysql_context *context)
             publisher->config_stat.reload_all = false;
             publisher->config_stat.version_changed.last_count =
                 publisher->config_stat.version_changed.total_count;
-            publisher->config_stat.last_reload_all_time = g_current_time;
             result = fcfg_server_cfg_reload_by_env_all(context, publisher);
         } else {
             result = fcfg_server_cfg_reload_by_env_incr(context, publisher);

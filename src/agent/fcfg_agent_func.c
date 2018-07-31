@@ -45,7 +45,7 @@ int fcfg_agent_load_config(const char *filename)
     snprintf(g_agent_global_vars.env, sizeof(g_agent_global_vars.env), "%s",
             pDataPath);
     snprintf(g_agent_global_vars.shm_version_key, sizeof(g_agent_global_vars.shm_version_key),
-             "%s_%s", g_agent_global_vars.env, FCFG_AGENT_SHM_VERSION_KEY_SUFFIX);
+             "__%s_%s__", g_agent_global_vars.env, FCFG_AGENT_SHM_VERSION_KEY_SUFFIX);
 
 
     g_sf_global_vars.sync_log_buff_interval = iniGetIntValue(NULL,
@@ -82,14 +82,23 @@ int fcfg_agent_load_config(const char *filename)
         _get_conn_config(g_agent_global_vars.join_conn + i, config_server[i]);
         linfo("config_server: %s", config_server[i]);
     }
+    g_agent_global_vars.network_timeout = iniGetIntValue(NULL, "network_timeout",
+            &ini_context, FCFG_NETWORK_TIMEOUT_DEFAULT);
+
+    g_agent_global_vars.connect_timeout = iniGetIntValue(NULL, "connect_timeout",
+            &ini_context, FCFG_CONNECT_TIMEOUT_DEFAULT);
     linfo("base_path: %s, "
           "shm_config_file: %s, "
           "env: %s, "
-          "shm_version_key: %s",
+          "shm_version_key: %s, "
+          "network_timeout: %d, "
+          "connect_timeout: %d",
           g_sf_global_vars.base_path,
           g_agent_global_vars.shm_config_file,
           g_agent_global_vars.env,
-          g_agent_global_vars.shm_version_key);
+          g_agent_global_vars.shm_version_key,
+          g_agent_global_vars.network_timeout,
+          g_agent_global_vars.connect_timeout);
 
     sf_log_config_ex(NULL);
 
@@ -139,7 +148,7 @@ int fcfg_check_push_config_body_len(FCFGPushConfigHeader *fcfg_push_header,
     int body_part_len = 0;
     int count = fcfg_push_header->count;
 
-    size = sizeof(FCFGPushConfigBodyPart);
+    size = sizeof(FCFGProtoPushConfigBodyPart);
     for (i = 0; i < count; i ++) {
         name_len = fcfg_push_body_pro->name_len;
         value_len = buff2int(fcfg_push_body_pro->value_len);

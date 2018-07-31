@@ -24,7 +24,7 @@ int fcfg_extract_push_config_body_data (
 void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
         FCFGResponseInfo *resp_info);
 int fcfg_agent_load_config(const char *filename);
-#define FCFG_AGENT_SHM_VERSION_KEY_SUFFIX   "shm_version_key"
+#define FCFG_AGENT_SHM_VERSION_KEY_SUFFIX   "shm_version"
 
 #ifdef __cplusplus
 }

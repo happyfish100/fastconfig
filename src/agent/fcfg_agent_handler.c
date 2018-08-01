@@ -116,6 +116,7 @@ static int fcfg_set_push_config(const char *body_data,
         if (ret) {
             lerr ("shmcache_set_ex/delete fail:status:%d, %d, %s",
                     fcfg_push_body_data.status, ret, strerror(ret));
+            break;
         }
 
         /* the last one is the max version that is ensured by sender */
@@ -126,9 +127,11 @@ static int fcfg_set_push_config(const char *body_data,
                               fcfg_push_body_data.value_len);
     }
 
-    fcfg_agent_set_config_version(*max_version);
+    if (fcfg_push_header.count && (ret == 0)) {
+        ret = fcfg_agent_set_config_version(*max_version);
+    }
 
-    return 0;
+    return ret;
 }
 
 int fcfg_agent_shm_init ()
@@ -224,7 +227,8 @@ int fcfg_agent_recv_server_active_test (ConnectionInfo *join_conn)
 {
     return fcfg_agent_send_header_resp(join_conn, FCFG_PROTO_ACTIVE_TEST_RESP);
 }
-int fcfg_agent_send_push_config_resp(ConnectionInfo *join_conn, int64_t max_version)
+int fcfg_agent_send_push_config_resp(ConnectionInfo *join_conn,
+        int64_t max_version, unsigned char resp_status)
 {
     char buff[32];
     int size;
@@ -232,11 +236,12 @@ int fcfg_agent_send_push_config_resp(ConnectionInfo *join_conn, int64_t max_vers
         (FCFGProtoHeader *)buff;
     FCFGProtoPushResp *fcfg_push_resp_pro =
         (FCFGProtoPushResp *)(fcfg_header_resp_pro + 1);
-    fcfg_header_resp_pro->status = 0;
+    fcfg_header_resp_pro->status = resp_status;
     fcfg_header_resp_pro->cmd = FCFG_PROTO_PUSH_RESP;
     int2buff(sizeof(FCFGProtoPushResp), fcfg_header_resp_pro->body_len);
     long2buff(max_version, fcfg_push_resp_pro->agent_cfg_version);
-    linfo("fcfg_agent_send_push_config_resp max_version:%"PRId64, max_version);
+    linfo("fcfg_agent_send_push_config_resp.status:%d, max_version:%"PRId64,
+            resp_status, max_version);
 
     size = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoPushResp);
     return tcpsenddata_nb(join_conn->sock, buff,
@@ -245,17 +250,21 @@ int fcfg_agent_send_push_config_resp(ConnectionInfo *join_conn, int64_t max_vers
 int fcfg_agent_recv_server_psuh_config (ConnectionInfo *join_conn, int body_len)
 {
     int ret;
+    unsigned char resp_status;
     char buff[256 * 1024];
-    int64_t max_version;
+    int64_t max_version = 0;
 
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             body_len, g_agent_global_vars.network_timeout, NULL);
     if (ret) {
         lerr ("tcprecvdata_nb_ex ret:%d, %s", ret, strerror(ret));
+        return ret;
     }
-    fcfg_set_push_config(buff, body_len, &max_version);
+    ret = fcfg_set_push_config(buff, body_len, &max_version);
 
-    return fcfg_agent_send_push_config_resp(join_conn, max_version);
+    resp_status = (ret >= 0) ? ret : (-1 * ret);
+
+    return fcfg_agent_send_push_config_resp(join_conn, max_version, resp_status);
 }
 
 int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)

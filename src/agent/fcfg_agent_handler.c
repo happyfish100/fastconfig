@@ -40,10 +40,10 @@ static int fcfg_agent_set_config_version(int64_t version)
             &key,
             &value);
     if (ret) {
-        lerr("shmcache_set_ex fail:%d, %s, version:%"PRId64,
+        lerr("shmcache_set_ex set config version fail:%d, %s, version:%"PRId64,
                 ret, strerror(ret), version);
     } else {
-        linfo("shmcache_set_ex success. version:%"PRId64,
+        linfo("shmcache_set_ex set config version success. version:%"PRId64,
                  version);
     }
 
@@ -74,6 +74,34 @@ static int fcfg_agent_get_config_version()
     return version;
 }
 
+static void _print_push_config (int status, struct shmcache_key_info *key,
+        struct shmcache_value_info *value, int64_t max_version)
+{
+    char key_str[2048];
+    char value_str[2048];
+
+    if (key->length >= sizeof(key_str)) {
+        lerr ("_print_push_config key too long:%d", key->length);
+        return;
+    }
+    memcpy(key_str, key->data, key->length);
+    key_str[key->length] = '\0';
+    if (status == FCFG_CONFIG_STATUS_NORMAL) {
+        if (value->length >= sizeof(value_str)) {
+            lerr ("_print_push_config value too long:%d", value->length);
+            return;
+        }
+        memcpy(value_str, value->data, value->length);
+        value_str[value->length] = '\0';
+        linfo("push conifg. status: %d, version: %"PRId64", key: %s, value: %s",
+                status, max_version, key_str, value_str);
+    } else {
+        linfo("push conifg. status: %d, version: %"PRId64", key: %s",
+                status, max_version, key_str);
+    }
+
+    return;
+}
 static int fcfg_set_push_config(const char *body_data,
         const int body_len, int64_t *max_version)
 {
@@ -113,6 +141,9 @@ static int fcfg_set_push_config(const char *body_data,
         } else {
             ret = shmcache_delete(&g_agent_global_vars.shm_context, &key);
         }
+
+        _print_push_config(fcfg_push_body_data.status,
+                &key, &value, fcfg_push_body_data.version);
         if (ret) {
             lerr ("shmcache_set_ex/delete fail:status:%d, %d, %s",
                     fcfg_push_body_data.status, ret, strerror(ret));

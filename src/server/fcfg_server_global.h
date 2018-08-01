@@ -20,6 +20,11 @@ typedef struct fcfg_server_global_vars {
         char *database;
     } db_config;
 
+    struct {
+        string_t username;
+        string_t secret_key;
+    } admin;
+
     FCFGEnvArray *env_array;
 
     int reload_interval_ms;

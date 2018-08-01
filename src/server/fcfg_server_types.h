@@ -16,6 +16,16 @@
 #define FCFG_SERVER_DEFAULT_RELOAD_INTERVAL       500
 #define FCFG_SERVER_DEFAULT_CHECK_ALIVE_INTERVAL  300
 
+#define FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG   1
+#define FCFG_SERVER_EVENT_TYPE_ACTIVE_TEST   2
+
+#define FCFG_SERVER_TASK_WAITING_REQUEST          0
+#define FCFG_SERVER_TASK_WAITING_PUSH_RESP        1
+#define FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP 2
+
+#define FCFG_SERVER_TASK_WAITING_RESP (FCFG_SERVER_TASK_WAITING_PUSH_RESP | \
+        FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP)
+
 typedef struct fcfg_server_context {
     FCFGMySQLContext mysql_context;
     struct common_blocked_queue push_queue;
@@ -44,16 +54,6 @@ typedef struct fcfg_config_message_queue {
     int offset;
 } FCFGConfigMessageQueue;
 
-#define FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG   1
-#define FCFG_SERVER_EVENT_TYPE_ACTIVE_TEST   2
-
-#define FCFG_SERVER_TASK_WAITING_REQUEST          0
-#define FCFG_SERVER_TASK_WAITING_PUSH_RESP        1
-#define FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP 2
-
-#define FCFG_SERVER_TASK_WAITING_RESP (FCFG_SERVER_TASK_WAITING_PUSH_RESP | \
-        FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP)
-
 typedef struct fcfg_server_task_arg {
     volatile int64_t task_version;
 
@@ -64,6 +64,7 @@ typedef struct fcfg_server_task_arg {
 
     int last_recv_pkg_time;
     short waiting_type;
+    bool joined;
 } FCFGServerTaskArg;
 
 typedef struct fcfg_server_push_event {

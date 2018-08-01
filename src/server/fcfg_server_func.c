@@ -84,6 +84,58 @@ static int fcfg_server_load_db_config(IniContext *ini_context)
     return 0;
 }
 
+static int fcfg_server_load_admin_config(IniContext *ini_context)
+{
+#define ADMIN_SECTION_NAME "admin"
+
+    char *username;
+    char *secret_key;
+    char *buff;
+    char *p;
+    struct {
+        int username;
+        int secret_key;
+    } lengths;
+    int bytes;
+
+    if ((username=iniGetRequiredStrValue(ADMIN_SECTION_NAME, "username",
+                    ini_context)) == NULL)
+    {
+        return ENOENT;
+    }
+
+    if ((secret_key=iniGetRequiredStrValue(ADMIN_SECTION_NAME, "secret_key",
+                    ini_context)) == NULL)
+    {
+        return ENOENT;
+    }
+
+    g_server_global_vars.admin.username.len = strlen(username);
+    g_server_global_vars.admin.secret_key.len = strlen(secret_key);
+
+    lengths.username = g_server_global_vars.admin.username.len + 1;
+    lengths.secret_key = g_server_global_vars.admin.secret_key.len + 1;
+
+    bytes = lengths.username + lengths.secret_key;
+    buff = (char *)malloc(bytes);
+    if (buff == NULL) {
+        logError("file: "__FILE__", line: %d, "
+                "malloc %d bytes fail", __LINE__, bytes);
+        return ENOMEM;
+    }
+
+    p = buff;
+    g_server_global_vars.admin.username.str = p;
+    p += lengths.username;
+
+    g_server_global_vars.admin.secret_key.str = p;
+    p += lengths.secret_key;
+
+    memcpy(g_server_global_vars.admin.username.str, username, lengths.username);
+    memcpy(g_server_global_vars.admin.secret_key.str, secret_key, lengths.secret_key);
+    return 0;
+}
+
 int fcfg_server_load_config(const char *filename)
 {
     IniContext ini_context;
@@ -106,6 +158,10 @@ int fcfg_server_load_config(const char *filename)
     }
 
     if ((result=fcfg_server_load_db_config(&ini_context)) != 0) {
+        return result;
+    }
+
+    if ((result=fcfg_server_load_admin_config(&ini_context)) != 0) {
         return result;
     }
 
@@ -150,7 +206,9 @@ int fcfg_server_load_config(const char *filename)
 
     snprintf(server_config_str, sizeof(server_config_str),
             "db config {host: %s, port: %d, user: %s, "
-            "password: %s, database: %s}, reload_interval_ms: %d ms, "
+            "password: %s, database: %s}, "
+            "admin config {username: %s, secret_key: %s} "
+            "reload_interval_ms: %d ms, "
             "check_alive_interval: %d s, "
             "reload_all_configs_policy {min_version_changed: %d, "
             "min_interval: %d s, max_interval: %d s}",
@@ -159,6 +217,8 @@ int fcfg_server_load_config(const char *filename)
             g_server_global_vars.db_config.user,
             g_server_global_vars.db_config.password,
             g_server_global_vars.db_config.database,
+            g_server_global_vars.admin.username.str,
+            g_server_global_vars.admin.secret_key.str,
             g_server_global_vars.reload_interval_ms,
             g_server_global_vars.check_alive_interval,
             g_server_global_vars.reload_all_configs_policy.min_version_changed,

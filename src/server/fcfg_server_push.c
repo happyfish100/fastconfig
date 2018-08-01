@@ -47,7 +47,7 @@ static void *fcfg_server_push_entrance(void *arg)
         }
 
         usleep(usleep_time);
-        if (count++ % 100 == 0) {
+        if (count++ % 1000 == 0) {
             logInfo("push loop: %"PRId64, count);
         }
     }
@@ -104,8 +104,12 @@ static int find_config_version_closest_less_equal(FCFGConfigArray *array,
     int high;
     int mid;
 
-    if (array->count == 0) {
+    if (array->count == 0 || array->rows[0].version > target_version) {
         return -1;
+    }
+
+    if (array->rows[array->count - 1].version == target_version) {
+        return array->count - 1;
     }
 
     low = 0;
@@ -150,13 +154,18 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     config = msg_queue->config_array->rows + msg_queue->offset;
     record_size = CONFIG_RECORD_SIZE(config);
     expect_size = task->length + record_size;
+
+    logInfo("file: "__FILE__", line: %d, client ip: %s, "
+            "config offset: %d, total count: %d", __LINE__,
+            task->client_ip, msg_queue->offset,
+            msg_queue->config_array->count);
+
     if (expect_size > task->size) {
         if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
             return result;
         }
     }
 
-    header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
     start_offset = msg_queue->offset;
     while (msg_queue->offset < msg_queue->config_array->count) {
         config = msg_queue->config_array->rows + msg_queue->offset;
@@ -183,14 +192,16 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     msg_queue->agent_cfg_version = msg_queue->config_array->rows
         [msg_queue->offset - 1].version;
     config_count = msg_queue->offset - start_offset;
+
+    header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
     short2buff(config_count, header_part->count);
 
     logInfo("file: "__FILE__", line: %d, client ip: %s, "
             "send %d configs, config offset: %d, total count: %d, "
-            "agent_cfg_version: %"PRId64,
+            "agent_cfg_version: %"PRId64", task length: %d",
             __LINE__, task->client_ip, config_count,
             msg_queue->offset, msg_queue->config_array->count,
-            msg_queue->agent_cfg_version);
+            msg_queue->agent_cfg_version, task->length);
 
     proto_header = (FCFGProtoHeader *)task->data;
     int2buff(task->length - sizeof(FCFGProtoHeader), proto_header->body_len);
@@ -214,14 +225,8 @@ int fcfg_server_push_configs(struct fast_task_info *task)
         msg_queue->config_array = task_arg->publisher->config_array;
         config_count = msg_queue->config_array->count;
         if (config_count > 0) {
-            if (msg_queue->config_array->rows[config_count - 1]
-                    .version == msg_queue->agent_cfg_version)
-            {
-                msg_queue->offset = config_count;
-            } else {
-                msg_queue->offset = find_config_version_closest_less_equal(
-                        msg_queue->config_array, msg_queue->agent_cfg_version) + 1;
-            }
+            msg_queue->offset = find_config_version_closest_less_equal(
+                    msg_queue->config_array, msg_queue->agent_cfg_version) + 1;
         } else {
             msg_queue->offset = 0;
         }

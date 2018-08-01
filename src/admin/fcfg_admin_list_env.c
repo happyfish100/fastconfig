@@ -23,9 +23,6 @@ static void usage(char *program)
     fprintf(stderr, "Usage: %s options, the options as:\n"
             "\t -h help\n"
             "\t -c <config-filename>\n"
-            "\t -e <config-env>\n"
-            "\t -n <config-name>\n"
-            "\t -l <limit>\n"
             "\n", program);
 }
 
@@ -39,9 +36,6 @@ static void parse_args(int argc, char **argv)
         switch (ch) {
             case 'c':
                 g_fcfg_admin_list_env.config_file = optarg;
-                break;
-            case 'e':
-                g_fcfg_admin_list_env.config_env = optarg;
                 break;
             case 'h':
             default:
@@ -81,19 +75,21 @@ int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array)
     size = sizeof(FCFGProtoListEnvRespHeader);
     for (index = 0; index < count; index ++) {
         ret = fcfg_admin_env_set_entry(
-                (FCFGProtoGetEnvResp *)(list_env_resp_body_proto + index),
+                (FCFGProtoListEnvRespBodyPart *)(buff + size),
                 array->rows + index,
                 &env_size);
         if (ret) {
             break;
         }
         size += env_size;
+
+        //fprintf(stderr, "size:%d, env_size:%d\n", size, env_size);
         array->count ++;
     }
     if (ret || (size != len)) {
         fprintf(stderr, "file: "__FILE__", line: %d, "
-                "fcfg_admin_env_set_entry fail ret:%d, size: %d, len: %d\n",
-                __LINE__, ret, size, len);
+                "fcfg_admin_env_set_entry fail ret:%d, count:%d, size: %d, len: %d\n",
+                __LINE__, ret, count, size, len);
         return -1;
     }
 
@@ -156,7 +152,7 @@ int fcfg_admin_list_env (FCFGEnvArray *array, ConnectionInfo *join_conn)
     }
 
     if (ret == 0) {
-        fprintf(stderr, "get config success !\n");
+        fprintf(stderr, "get env success !\n");
     }
     return ret;
 }
@@ -168,7 +164,7 @@ int main (int argc, char **argv)
     FCFGEnvArray array;
     memset(&array, 0, sizeof(FCFGEnvArray));
 
-    if (argc < 7) {
+    if (argc < 3) {
         usage(argv[0]);
         return 1;
     }
@@ -200,6 +196,7 @@ int main (int argc, char **argv)
     }
 
     ret = fcfg_admin_list_env(&array, join_conn);
+    fcfg_admin_print_env_array(&array);
 
 END:
     fcfg_disconn_config_server(join_conn);

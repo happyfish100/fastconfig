@@ -77,27 +77,13 @@ static int fcfg_agent_get_config_version()
 static void _print_push_config (int status, struct shmcache_key_info *key,
         struct shmcache_value_info *value, int64_t max_version)
 {
-    char key_str[2048];
-    char value_str[2048];
-
-    if (key->length >= sizeof(key_str)) {
-        lerr ("_print_push_config key too long:%d", key->length);
-        return;
-    }
-    memcpy(key_str, key->data, key->length);
-    key_str[key->length] = '\0';
     if (status == FCFG_CONFIG_STATUS_NORMAL) {
-        if (value->length >= sizeof(value_str)) {
-            lerr ("_print_push_config value too long:%d", value->length);
-            return;
-        }
-        memcpy(value_str, value->data, value->length);
-        value_str[value->length] = '\0';
-        linfo("push conifg. status: %d, version: %"PRId64", key: %s, value: %s",
-                status, max_version, key_str, value_str);
+        linfo("push conifg. status: %d, version: %"PRId64", key: %.*s, "
+                "value: %.*s",
+                status, max_version, key->length, key->data, value->length, value->data);
     } else {
-        linfo("push conifg. status: %d, version: %"PRId64", key: %s",
-                status, max_version, key_str);
+        linfo("push conifg. status: %d, version: %"PRId64", key: %.*s",
+                status, max_version, key->length, key->data);
     }
 
     return;

@@ -186,6 +186,7 @@ int main (int argc, char **argv)
     }
 
     ret = fcfg_admin_get_env(&array, join_conn);
+    fcfg_admin_print_env_array(&array);
 
 END:
     fcfg_disconn_config_server(join_conn);

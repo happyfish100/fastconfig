@@ -185,6 +185,7 @@ int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
     strncpy(rows->env.str, get_env_resp->env, rows->env.len);
     rows->env.str[rows->env.len] = '\0';
 
+    //fprintf(stderr, "env:%s, len:%d\n", rows->env.str, size);
     *env_size = size + sizeof(FCFGProtoGetEnvResp);
     return 0;
 }
@@ -216,4 +217,28 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
     *config_len = sizeof(FCFGProtoGetConfigResp) + size;
 
     return 0;
+}
+
+void fcfg_admin_print_env_array (FCFGEnvArray *array)
+{
+    int i;
+
+    fprintf(stderr, "Env count:%d\n", array->count);
+    for (i = 0; i < array->count; i++) {
+        fprintf(stderr, "Env %d: %s\n", i, (array->rows+i)->env.str);
+    }
+}
+
+void fcfg_admin_print_config_array (FCFGConfigArray *array)
+{
+    int i;
+
+    fprintf(stderr, "Config count:%d\n", array->count);
+    for (i = 0; i < array->count; i++) {
+        fprintf(stderr, "Config %d: version:%"PRId64
+                ", key: %s, value: %s, status:%d\n",
+                i, (array->rows + i)->version,
+                (array->rows + i)->name.str, (array->rows + i)->value.str,
+                (array->rows + i)->status);
+    }
 }

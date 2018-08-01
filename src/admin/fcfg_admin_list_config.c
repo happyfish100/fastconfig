@@ -115,7 +115,7 @@ int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
 
     size = sizeof(FCFGProtoListConfigRespHeader);
     for (index = 0; index < count; index ++) {
-        ret = fcfg_admin_config_set_entry(list_config_resp_body_proto + index,
+        ret = fcfg_admin_config_set_entry((FCFGProtoListConfigRespBodyPart *)(buff + size),
                 array->rows + index, &config_size);
         if (ret) {
             break;
@@ -125,7 +125,7 @@ int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
     }
     if (ret || (size != len)) {
         fprintf(stderr, "fcfg_admin_config_set_entry fail"
-                " ret:%d, size:%d, len:%d", ret, size, len);
+                " ret:%d, count:%d, size:%d, len:%d", ret, count, size, len);
         return -1;
     }
 

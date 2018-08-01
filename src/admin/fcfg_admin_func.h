@@ -29,6 +29,9 @@ int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
         FCFGEnvEntry *rows, int *env_size);
 int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
         FCFGConfigEntry *rows, int *config_len);
+void fcfg_admin_print_env_array (FCFGEnvArray *array);
+void fcfg_admin_print_config_array (FCFGConfigArray *array);
+
 #ifdef __cplusplus
 }
 #endif

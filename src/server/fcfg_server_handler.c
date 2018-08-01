@@ -311,6 +311,8 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     char name[FCFG_CONFIG_NAME_SIZE];
     int env_len;
     int name_len;
+    int value_len;
+    int data_body_len;
     string_t value;
     int result;
 
@@ -326,7 +328,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
 
     env_len = set_config_req->env_len;
     name_len = set_config_req->name_len;
-    value.len = buff2int(set_config_req->value_len);
+    value_len = buff2int(set_config_req->value_len);
 
     do {
         if (env_len <= 0 || env_len > FCFG_CONFIG_MAX_ENV_LEN) {
@@ -349,8 +351,17 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
             result = EINVAL;
             break;
         }
-
-        //TODO check length
+        
+        data_body_len = sizeof(FCFGProtoSetConfigReq) +
+                        env_len +
+                        name_len +
+                        value_len;
+        if (request->body_len != data_body_len) {
+            response->error.length = sprintf(response->error.message,
+                    "invalid body_len: %d:%d", request->body_len, data_body_len);
+            result = EINVAL;
+            break;
+        }
     } while (0);
 
     if (result != 0) {
@@ -364,16 +375,263 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     memcpy(env, set_config_req->env, env_len);
     *(env + env_len) = '\0';
 
-    memcpy(name, set_config_req->name, name_len);
+    memcpy(name, set_config_req->env + env_len, name_len);
     *(name + name_len) = '\0';
 
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
-    value.str = task->data + sizeof(FCFGProtoHeader);
+    value.str = task->data + sizeof(FCFGProtoHeader) + env_len + name_len;
     *(value.str + value.len) = '\0';
 
     return fcfg_server_dao_set_config(mysql_context, env, name, value.str);
 }
 
+static int fcfg_proto_deal_get_config(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    FCFGMySQLContext *mysql_context;
+    FCFGProtoGetConfigReq *get_config_req;
+    FCFGConfigArray array;
+    char env[FCFG_CONFIG_ENV_SIZE];
+    char name[FCFG_CONFIG_NAME_SIZE];
+    int env_len;
+    int name_len;
+    int expect_size;
+    int data_body_len;
+    FCFGProtoGetConfigResp *get_config_resp;
+    int result;
+
+    if ((result=FCFG_PROTO_CHECK_BODY_LEN(task, request, response,
+                    sizeof(FCFGProtoGetConfigReq),
+                    sizeof(FCFGProtoGetConfigReq) + FCFG_CONFIG_MAX_ENV_LEN +
+                    FCFG_CONFIG_MAX_NAME_LEN)) != 0)
+    {
+        return result;
+    }
+
+    get_config_req = (FCFGProtoGetConfigReq *)(task->data + sizeof(FCFGProtoHeader));
+
+    env_len = get_config_req->env_len;
+    name_len = get_config_req->name_len;
+
+    do {
+        if (env_len <= 0 || env_len > FCFG_CONFIG_MAX_ENV_LEN) {
+            response->error.length = sprintf(response->error.message,
+                    "invalid env length: %d", env_len);
+            result = EINVAL;
+            break;
+        }
+
+        if (name_len <= 0 || name_len  > FCFG_CONFIG_MAX_NAME_LEN) {
+            response->error.length = sprintf(response->error.message,
+                    "invalid name length: %d", name_len);
+            result = EINVAL;
+            break;
+        }
+        
+        data_body_len = sizeof(FCFGProtoGetConfigReq) +
+                        env_len +
+                        name_len;
+        if (request->body_len != data_body_len) {
+            response->error.length = sprintf(response->error.message,
+                    "invalid body_len: %d:%d", request->body_len, data_body_len);
+            result = EINVAL;
+            break;
+        }
+    } while (0);
+
+    if (result != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "client ip: %s, cmd: %d, %s",
+                __LINE__, task->client_ip, request->cmd,
+                response->error.message);
+        return result;
+    }
+ 
+    memcpy(env, get_config_req->env, env_len);
+    *(env + env_len) = '\0';
+
+    memcpy(name, get_config_req->env + env_len, name_len);
+    *(name + name_len) = '\0';
+
+    mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
+    result = fcfg_server_dao_get_config(mysql_context, env, name, &array);
+    if (result != 0) {
+        response->error.length = sprintf(response->error.message,
+                "server dao fail. %d, err info: %s",
+                result, strerror(result));
+        logError("file: "__FILE__", line: %d, "
+                "client ip: %s, cmd: %d, %s",
+                __LINE__, task->client_ip, request->cmd,
+                response->error.message);
+        return result;
+    }
+    expect_size = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoGetConfigResp)
+        + array.rows->name.len + array.rows->value.len;
+    if (expect_size > task->size) {
+        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+            response->error.length = sprintf(response->error.message,
+                    "response data is too large: %d", expect_size);
+            logError("file: "__FILE__", line: %d, "
+                    "client ip: %s, cmd: %d, %s",
+                    __LINE__, task->client_ip, request->cmd,
+                    response->error.message);
+            return ENOSPC;
+        }
+    }
+    get_config_resp = (FCFGProtoGetConfigResp *)(task->data + sizeof(FCFGProtoHeader));
+    get_config_resp->status = array.rows->status;
+    get_config_resp->name_len = array.rows->name.len;
+    int2buff(array.rows->value.len, get_config_resp->value_len);
+    long2buff(array.rows->version, get_config_resp->version);
+    int2buff(array.rows->create_time, get_config_resp->create_time);
+    int2buff(array.rows->update_time, get_config_resp->update_time);
+    memcpy(get_config_resp->name, array.rows->name.str, array.rows->name.len);
+    memcpy(get_config_resp->name + array.rows->name.len,
+           array.rows->value.str, array.rows->value.len);
+
+    response->body_len = sizeof(FCFGProtoGetConfigResp) +
+        array.rows->name.len +
+        array.rows->value.len;
+    response->cmd = FCFG_PROTO_GET_CONFIG_RESP;
+    response->response_done = true;
+
+    fcfg_server_dao_free_config_array(&array);
+
+    return 0;
+}
+
+static int fcfg_proto_deal_list_config(struct fast_task_info *task,
+        const FCFGRequestInfo *request, FCFGResponseInfo *response)
+{
+    FCFGMySQLContext *mysql_context;
+    FCFGProtoListConfigReq *list_config_req;
+    FCFGProtoListConfigRespBodyPart *list_config_resp;
+    FCFGConfigArray array;
+    char env[FCFG_CONFIG_ENV_SIZE];
+    char name[FCFG_CONFIG_NAME_SIZE];
+    int env_len;
+    int name_len;
+    short offset;
+    short count;
+    int expect_size;
+    int data_body_len;
+    int result;
+    char *p;
+    int i;
+
+    if ((result=FCFG_PROTO_CHECK_BODY_LEN(task, request, response,
+                    sizeof(FCFGProtoListConfigReq),
+                    sizeof(FCFGProtoListConfigReq) + FCFG_CONFIG_MAX_ENV_LEN +
+                    FCFG_CONFIG_MAX_NAME_LEN)) != 0)
+    {
+        return result;
+    }
+
+    list_config_req = (FCFGProtoListConfigReq *)(task->data + sizeof(FCFGProtoHeader));
+
+    env_len = list_config_req->env_len;
+    name_len = list_config_req->name_len;
+
+    do {
+        if (env_len <= 0 || env_len > FCFG_CONFIG_MAX_ENV_LEN) {
+            response->error.length = sprintf(response->error.message,
+                    "invalid env length: %d", env_len);
+            result = EINVAL;
+            break;
+        }
+
+        if (name_len <= 0 || name_len > FCFG_CONFIG_MAX_NAME_LEN) {
+            response->error.length = sprintf(response->error.message,
+                    "invalid name length: %d", name_len);
+            result = EINVAL;
+            break;
+        }
+        
+        data_body_len = sizeof(FCFGProtoListConfigReq) +
+                        env_len +
+                        name_len;
+        if (request->body_len != data_body_len) {
+            response->error.length = sprintf(response->error.message,
+                    "invalid body_len: %d:%d", request->body_len, data_body_len);
+            result = EINVAL;
+            break;
+        }
+    } while (0);
+
+    if (result != 0) {
+        logError("file: "__FILE__", line: %d, "
+                "client ip: %s, cmd: %d, %s",
+                __LINE__, task->client_ip, request->cmd,
+                response->error.message);
+        return result;
+    }
+ 
+    memcpy(env, list_config_req->env, env_len);
+    *(env + env_len) = '\0';
+
+    memcpy(name, list_config_req->env + env_len, name_len);
+    *(name + name_len) = '\0';
+
+    offset = buff2short(list_config_req->limit.offset);
+    count = buff2short(list_config_req->limit.count);
+
+    mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
+    result = fcfg_server_dao_search_config(mysql_context, env, name,
+            offset, count, &array);
+    if (result != 0) {
+        response->error.length = sprintf(response->error.message,
+                "server dao fail. %d, err info: %s",
+                result, strerror(result));
+        logError("file: "__FILE__", line: %d, "
+                "client ip: %s, cmd: %d, %s",
+                __LINE__, task->client_ip, request->cmd,
+                response->error.message);
+        return result;
+    }
+    expect_size = sizeof(FCFGProtoHeader) +
+        sizeof(FCFGProtoListConfigRespHeader);
+    for (i = 0; i < array.count; i++) {
+        expect_size += sizeof(FCFGProtoListConfigRespBodyPart) +
+            (array.rows + i)->name.len + (array.rows + i)->value.len;
+    }
+    if (expect_size > task->size) {
+        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+            response->error.length = sprintf(response->error.message,
+                    "response data is too large: %d", expect_size);
+            logError("file: "__FILE__", line: %d, "
+                    "client ip: %s, cmd: %d, %s",
+                    __LINE__, task->client_ip, request->cmd,
+                    response->error.message);
+            return ENOSPC;
+        }
+    }
+    p = (char *)(task->data +
+            sizeof(FCFGProtoHeader) + 
+            sizeof(FCFGProtoListConfigRespHeader));
+    for (i = 0; i < array.count; i++) {
+        list_config_resp = (FCFGProtoListConfigRespBodyPart *)p;
+        list_config_resp->status = array.rows->status;
+        list_config_resp->name_len = array.rows->name.len;
+        int2buff(array.rows->value.len, list_config_resp->value_len);
+        long2buff(array.rows->version, list_config_resp->version);
+        int2buff(array.rows->create_time, list_config_resp->create_time);
+        int2buff(array.rows->update_time, list_config_resp->update_time);
+        memcpy(list_config_resp->name, array.rows->name.str, array.rows->name.len);
+        memcpy(list_config_resp->name + array.rows->name.len,
+                array.rows->value.str, array.rows->value.len);
+        p = p + sizeof(FCFGProtoListConfigRespBodyPart) +
+            array.rows->name.len +
+            array.rows->value.len;
+
+    }
+    response->body_len = expect_size - sizeof(FCFGProtoHeader);
+    response->cmd = FCFG_PROTO_LIST_CONFIG_RESP;
+    response->response_done = true;
+
+    fcfg_server_dao_free_config_array(&array);
+
+    return 0;
+}
 static int fcfg_proto_deal_push_config_resp(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response)
 {
@@ -484,6 +742,12 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                 break;
             case FCFG_PROTO_SET_CONFIG_REQ:
                 result = fcfg_proto_deal_set_config(task, &request, &response);
+                break;
+            case FCFG_PROTO_GET_CONFIG_REQ:
+                result = fcfg_proto_deal_get_config(task, &request, &response);
+                break;
+            case FCFG_PROTO_LIST_CONFIG_REQ:
+                result = fcfg_proto_deal_list_config(task, &request, &response);
                 break;
             default:
                 response.error.length = sprintf(response.error.message,

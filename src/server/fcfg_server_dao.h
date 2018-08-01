@@ -7,6 +7,10 @@
 #include "common/fcfg_types.h"
 #include "fcfg_server_env.h"
 
+#if LIBMYSQL_VERSION_ID >= 80000
+typedef bool my_bool;
+#endif
+
 typedef struct fcfg_mysql_context {
     MYSQL mysql;
 

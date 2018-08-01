@@ -1,0 +1,16 @@
+
+#step 1. download libfastcommon source package from github and install it,
+   git clone https://github.com/happyfish100/libfastcommon.git
+   cd libfastcommon
+   ./make.sh && sudo ./make.sh install
+
+#step 2. install mysql client library
+   * ubuntu OS: sudo apt-get install libmysqlclient-dev 
+   * CentOS: sudo yum install mysql-devel
+          or sudo yum install rh-mysql57-mysql-devel
+   * Mac OS: brew install mysql-client
+
+#step 3. download fastconfig source package from github and install it
+   git clone https://github.com/happyfish100/fastconfig.git
+   cd fastconfig/src
+   ./make.sh && sudo ./make.sh install

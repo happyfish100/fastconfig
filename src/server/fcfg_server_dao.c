@@ -783,6 +783,7 @@ static int fcfg_server_dao_do_list_env(FCFGMySQLContext *context, const char *en
         }
 
         current->env.str = strdup(row[0]);
+        current->env.len = strlen(row[0]);
         if (current->env.str == NULL) {
             logError("file: "__FILE__", line: %d, "
                     "strdup %s fail", __LINE__, row[0]);

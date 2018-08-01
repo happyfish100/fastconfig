@@ -26,6 +26,9 @@ void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
 int fcfg_agent_load_config(const char *filename);
 #define FCFG_AGENT_SHM_VERSION_KEY_SUFFIX   "shm_version"
 
+#define FCFG_SYNC_LOG_BUFF_DEF_INTERVAL 10
+#define FCFG_DEF_THREAD_STACK_SIZE (64 * 1024)
+
 #ifdef __cplusplus
 }
 #endif

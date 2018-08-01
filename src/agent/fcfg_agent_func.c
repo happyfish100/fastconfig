@@ -18,6 +18,8 @@ int fcfg_agent_load_config(const char *filename)
     int server_count;
     int i;
     char *pDataPath;
+    char *pThreadStackSize;
+    int64_t thread_stack_size;
     char *config_server[FCFG_CONFIG_SERVER_COUNT_MAX];
 
     memset(&ini_context, 0, sizeof(IniContext));
@@ -47,21 +49,30 @@ int fcfg_agent_load_config(const char *filename)
     snprintf(g_agent_global_vars.shm_version_key, sizeof(g_agent_global_vars.shm_version_key),
              "__%s_%s__", g_agent_global_vars.env, FCFG_AGENT_SHM_VERSION_KEY_SUFFIX);
 
+    pThreadStackSize = iniGetStrValue(NULL,
+            "thread_stack_size", &ini_context);
+    if (pThreadStackSize == NULL) {
+        thread_stack_size = FCFG_DEF_THREAD_STACK_SIZE;
+    } else if ((result=parse_bytes(pThreadStackSize, 1,
+                    &thread_stack_size)) != 0) {
+        return result;
+    }
+    g_sf_global_vars.thread_stack_size = (int)thread_stack_size;
 
-    g_sf_global_vars.sync_log_buff_interval = iniGetIntValue(NULL,
+    g_agent_global_vars.sync_log_buff_interval = iniGetIntValue(NULL,
             "sync_log_buff_interval", &ini_context,
-            SYNC_LOG_BUFF_DEF_INTERVAL);
-    if (g_sf_global_vars.sync_log_buff_interval <= 0) {
-        g_sf_global_vars.sync_log_buff_interval = SYNC_LOG_BUFF_DEF_INTERVAL;
+            FCFG_SYNC_LOG_BUFF_DEF_INTERVAL);
+    if (g_agent_global_vars.sync_log_buff_interval <= 0) {
+        g_agent_global_vars.sync_log_buff_interval = FCFG_SYNC_LOG_BUFF_DEF_INTERVAL;
     }
 
-    g_sf_global_vars.rotate_error_log = iniGetBoolValue(NULL, "rotate_error_log",
+    g_agent_global_vars.rotate_error_log = iniGetBoolValue(NULL, "rotate_error_log",
             &ini_context, false);
-    g_sf_global_vars.log_file_keep_days = iniGetIntValue(NULL, "log_file_keep_days",
+    g_agent_global_vars.log_file_keep_days = iniGetIntValue(NULL, "log_file_keep_days",
             &ini_context, 0);
 
     load_log_level(&ini_context);
-    if ((result=log_set_prefix(g_sf_global_vars.base_path, "fcfg_agent")) != 0) {
+    if ((result=log_set_prefix(g_agent_global_vars.base_path, "fcfg_agent")) != 0) {
         return result;
     }
 
@@ -93,7 +104,7 @@ int fcfg_agent_load_config(const char *filename)
           "shm_version_key: %s, "
           "network_timeout: %d, "
           "connect_timeout: %d",
-          g_sf_global_vars.base_path,
+          g_agent_global_vars.base_path,
           g_agent_global_vars.shm_config_file,
           g_agent_global_vars.env,
           g_agent_global_vars.shm_version_key,

@@ -274,7 +274,7 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
     FCFGResponseInfo resp_info;
     FCFGProtoHeader fcfg_header_resp_pro;
 
-    while (g_sf_global_vars.continue_flag && (ret == 0)) {
+    while (g_agent_global_vars.continue_flag && (ret == 0)) {
         ret = tcprecvdata_nb_ex(join_conn->sock, &fcfg_header_resp_pro,
                 sizeof(FCFGProtoHeader),
                 g_agent_global_vars.network_timeout, &recv_len);
@@ -348,7 +348,7 @@ int fcfg_agent_wait_config_server_loop ()
     int64_t version;
     ConnectionInfo *join_conn = NULL;
     ret = 0;
-    while (g_sf_global_vars.continue_flag) {
+    while (g_agent_global_vars.continue_flag) {
         if (join_conn && join_conn->sock >= 0) {
             conn_pool_disconnect_server(join_conn);
             sleep(1);

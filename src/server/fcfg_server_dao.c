@@ -36,7 +36,7 @@ int fcfg_server_dao_init(FCFGMySQLContext *context)
 #define CONFIG_SELECT_SQL "SELECT name, value, version, status, " \
         "UNIX_TIMESTAMP(create_time), UNIX_TIMESTAMP(update_time) FROM fast_config "
 
-    bool on;
+    my_bool on;
     int timeout;
     const char *insert_sql = "INSERT INTO fast_config "
         "(env, name, value, version, status) VALUES (?, ?, ?, ?, 0)";
@@ -332,8 +332,8 @@ static int fcfg_server_dao_store_rows(MYSQL_STMT *stmt, FCFGConfigArray *array)
         int create_time;
         int update_time;
     } buffer;
-    bool is_null[6];
-    bool error[6];
+    my_bool is_null[6];
+    my_bool error[6];
     FCFGConfigEntry *current;
     FCFGConfigEntry *end;
 
@@ -854,8 +854,8 @@ void fcfg_server_dao_free_env_array(FCFGEnvArray *array)
 static int fcfg_server_dao_store_max_version(MYSQL_STMT *stmt, int64_t *max_version)
 {
     MYSQL_BIND result_binds[1];
-    bool is_null;
-    bool error;
+    my_bool is_null;
+    my_bool error;
     int row_count;
 
     *max_version = 0;

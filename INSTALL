@@ -14,3 +14,12 @@
    git clone https://github.com/happyfish100/fastconfig.git
    cd fastconfig/src
    ./make.sh && sudo ./make.sh install
+
+#step 4. create database and execute SQL scripts:
+   in mysql command shell, execute following commands:
+   CREATE DATABASE fastconfig;
+   use fastconfig;
+   source sql/create_table.sql;
+
+#step 4. start config server
+   /usr/bin/config_serverd /etc/fcfg/fcfg_serverd.conf restart

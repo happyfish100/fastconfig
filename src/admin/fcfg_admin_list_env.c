@@ -57,12 +57,9 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array
     int ret;
     short count;
     FCFGProtoListEnvRespHeader *list_env_resp_header_proto;
-    FCFGProtoListEnvRespBodyPart *list_env_resp_body_proto;
 
     list_env_resp_header_proto = (FCFGProtoListEnvRespHeader *)buff;
     count = buff2short(list_env_resp_header_proto->count);
-    list_env_resp_body_proto = (FCFGProtoListEnvRespBodyPart *)
-        (list_env_resp_header_proto + 1);
 
     array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry) * count);
     if (array->rows == NULL) {

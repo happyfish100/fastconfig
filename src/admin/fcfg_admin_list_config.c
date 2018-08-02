@@ -99,7 +99,6 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *ar
     int ret;
     FCFGConfigEntry *tmp;
     FCFGConfigEntry *rows;
-    FCFGProtoListConfigRespBodyPart *list_config_resp_body_proto;
     FCFGProtoListConfigRespHeader *list_config_resp_header_proto =
         (FCFGProtoListConfigRespHeader *)buff;
     count = buff2short(list_config_resp_header_proto->count);
@@ -107,9 +106,6 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *ar
     if (count <= 0) {
         return 0;
     }
-
-    list_config_resp_body_proto =
-        (FCFGProtoListConfigRespBodyPart *)(list_config_resp_header_proto + 1);
 
     size = sizeof(FCFGConfigEntry) * (count + array->count);
     tmp = (FCFGConfigEntry *)malloc(size);

@@ -5,7 +5,7 @@ CONFIG_PATH=/usr/local/etc
 
 COMPILE = $(CC) -O0 -Wall -D_FILE_OFFSET_BITS=64 -g
 INC_PATH = -I.. -I/usr/local/include
-LIB_PATH = -L/usr/local/lib -lfastcommon
+LIB_PATH = -L/usr/local/lib -lfastcommon -lpthread
 
 SHARED_OBJS = ../common/fcfg_proto.lo fcfg_admin_func.lo
 ADMIN_SHARED_OBJS = fcfg_admin_set_config.lo fcfg_admin_get_config.lo \

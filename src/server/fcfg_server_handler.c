@@ -54,8 +54,6 @@ void fcfg_server_task_finish_cleanup(struct fast_task_info *task)
 
     __sync_add_and_fetch(&((FCFGServerTaskArg *)task->arg)->task_version, 1);
     sf_task_finish_clean_up(task);
-
-    logInfo("task_version: %"PRId64, ((FCFGServerTaskArg *)task->arg)->task_version);
 }
 
 int fcfg_server_recv_timeout_callback(struct fast_task_info *task)

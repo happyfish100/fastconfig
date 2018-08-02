@@ -33,8 +33,6 @@
 static bool daemon_mode = true;
 static int setup_server_env(const char *config_filename);
 
-static int test();
-
 int main(int argc, char *argv[])
 {
     char *config_filename;
@@ -103,8 +101,6 @@ int main(int argc, char *argv[])
     gofailif(r,"service init error");
     sf_set_remove_from_ready_list(false);
 
-    test();
-
     sf_accept_loop();
     if (g_schedule_flag) {
         pthread_kill(schedule_tid, SIGINT);
@@ -154,61 +150,5 @@ static int setup_server_env(const char *config_filename)
     result = sf_setup_signal_handler();
 
     log_set_cache(true);
-    return result;
-}
-
-static int test()
-{
-    FCFGMySQLContext context;
-    FCFGConfigArray rows;
-    int result;
-    const char *env = "test";
-    const char *name = "system.server_level";
-    const char *value = "5";
-    const int64_t version = 64;
-    const int offset = 0;
-    const int limit = 5;
-    int64_t max_env_version = 0;
-    int64_t max_cfg_version = 0;
-
-    if ((result=fcfg_server_dao_init(&context)) != 0) {
-        return result;
-    }
-
-    result = fcfg_server_dao_set_config(&context, env, name, value);
-    result = fcfg_server_dao_set_config(&context, env, name, value);
-    result = fcfg_server_dao_set_config(&context, env, name, value);
-
-    logInfo("fcfg_server_dao_list_config_by_env_and_version output:");
-    fcfg_server_dao_list_config_by_env_and_version(&context,
-            env, version, limit, &rows);
-    fcfg_server_dao_free_config_array(&rows);
-
-    logInfo("fcfg_server_dao_list_config_by_env_and_version output:");
-    fcfg_server_dao_list_config_by_env_and_version(&context,
-            env, version, limit, &rows);
-    fcfg_server_dao_free_config_array(&rows);
-
-    /*
-    logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
-    logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
-    logInfo("delete: %d", fcfg_server_dao_del_config(&context, env, name));
-    */
-
-    fcfg_server_dao_max_env_version(&context, &max_env_version);
-    fcfg_server_dao_max_config_version(&context, env, &max_cfg_version);
-
-    fcfg_server_dao_max_env_version(&context, &max_env_version);
-    fcfg_server_dao_max_config_version(&context, env, &max_cfg_version);
-    logInfo("max_env_version: %"PRId64", max_cfg_version: %"PRId64,
-            max_env_version, max_cfg_version);
-
-    logInfo("fcfg_server_dao_search_config output:");
-    name = "system%";
-    fcfg_server_dao_search_config(&context,
-            env, name, offset, limit, &rows);
-    fcfg_server_dao_free_config_array(&rows);
-
-    fcfg_server_dao_destroy(&context);
     return result;
 }

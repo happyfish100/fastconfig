@@ -454,12 +454,14 @@ static int fcfg_server_dao_store_rows(MYSQL_STMT *stmt, FCFGConfigArray *array)
         current->name.len = buffer.name_len;
         current->value.len = buffer.value_len;
 
+        /*
         logInfo("name: %.*s, value: %.*s, version: %"PRId64", status: %d, "
                 "create_time: %ld, update_time: %ld",
                 current->name.len, current->name.str,
                 current->value.len, current->value.str,
                 current->version, current->status,
                 (long)current->create_time, (long)current->update_time);
+                */
     }
 
     array->count = row_count;
@@ -735,8 +737,6 @@ static int fcfg_server_dao_do_list_env(FCFGMySQLContext *context, const char *en
     } else {
         sql_len += sprintf(select_sql + sql_len, " ORDER BY env");
     }
-
-    logInfo("do_list_env SQL: %s", select_sql);
 
     if (mysql_real_query(&context->mysql, select_sql, sql_len) != 0) {
         logError("file: "__FILE__", line: %d, "

@@ -99,7 +99,7 @@ int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
         (FCFGProtoListConfigRespHeader *)buff;
     count = buff2short(list_config_resp_header_proto->count);
     if (count <= 0) {
-        fprintf(stderr, "list config response count %d", count);
+        fprintf(stderr, "list config response count %d\n", count);
         return 0;
     }
 
@@ -163,13 +163,20 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
     int size;
     int offset;
     int i;
+    int count;
     FCFGResponseInfo resp_info;
     FCFGProtoHeader *fcfg_header_proto;
+
+    count = FCFG_ADMIN_LIST_REQUEST_COUNT;
     offset = g_fcfg_admin_list_config.limit / FCFG_ADMIN_LIST_REQUEST_COUNT + 1;
+    if (g_fcfg_admin_list_config.limit < FCFG_ADMIN_LIST_REQUEST_COUNT) {
+        offset = 1;
+        count = g_fcfg_admin_list_config.limit;
+    }
     for (i = 0; i < offset; i ++) {
         fcfg_header_proto = (FCFGProtoHeader *)buff;
         fcfg_set_admin_list_config(buff + sizeof(FCFGProtoHeader), &body_len,
-                i, FCFG_ADMIN_LIST_REQUEST_COUNT);
+                i, count);
         fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_LIST_CONFIG_REQ, body_len);
         size = sizeof(FCFGProtoHeader) + body_len;
         ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
@@ -183,8 +190,8 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
                 &resp_info, g_fcfg_admin_vars.network_timeout,
                 FCFG_PROTO_LIST_CONFIG_RESP);
         if (ret) {
-            fprintf(stderr, "list config fail.err info: %s\n",
-                    resp_info.error.message);
+            fprintf(stderr, "list config fail.err info: %*.s\n",
+                    resp_info.body_len, resp_info.error.message);
             break;
         } else {
             ret = fcfg_admin_list_config_response(join_conn, &resp_info,
@@ -208,6 +215,8 @@ int main (int argc, char **argv)
     ConnectionInfo *join_conn = NULL;
     FCFGConfigArray array;
     memset(&array, 0, sizeof(FCFGConfigArray));
+    memset(&g_fcfg_admin_list_config, 0,
+            sizeof(FCFGAdminListConfigGlobal));
 
     if (argc < 7) {
         usage(argv[0]);
@@ -244,6 +253,7 @@ int main (int argc, char **argv)
     }
 
     ret = fcfg_admin_list_config(&array, join_conn);
+    fcfg_admin_print_config_array(&array);
 
 END:
     fcfg_disconn_config_server(join_conn);

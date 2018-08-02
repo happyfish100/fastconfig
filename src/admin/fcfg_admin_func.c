@@ -210,8 +210,9 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
     }
     strncpy(rows->name.str, get_config_resp->name, rows->name.len);
     rows->name.str[rows->name.len] = '\0';
+    rows->value.str = rows->name.str + rows->name.len + 1;
     strncpy(rows->value.str,
-           get_config_resp->name + rows->name.len + 1,
+           get_config_resp->name + rows->name.len,
            rows->value.len);
     rows->value.str[rows->value.len] = '\0';
     *config_len = sizeof(FCFGProtoGetConfigResp) + size;

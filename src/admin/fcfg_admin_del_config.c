@@ -95,10 +95,10 @@ int fcfg_admin_del_config (ConnectionInfo *join_conn)
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        fprintf(stderr, "set config fail.err info: %s\n",
+        fprintf(stderr, "del config fail.err info: %s\n",
                 resp_info.error.message);
     } else {
-        fprintf(stderr, "set config success !\n");
+        fprintf(stderr, "del config success !\n");
     }
 
     return ret;

@@ -14,7 +14,7 @@ extern "C" {
 
 extern FCFGAdminListConfigGlobal g_fcfg_admin_list_config;
 
-#define FCFG_ADMIN_LIST_REQUEST_COUNT   20
+#define FCFG_ADMIN_LIST_REQUEST_COUNT   3
 
 #ifdef __cplusplus
 }

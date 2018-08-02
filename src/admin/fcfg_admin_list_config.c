@@ -34,7 +34,7 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:n:l:")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:n:l::")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
@@ -87,36 +87,48 @@ void fcfg_set_admin_list_config(char *buff,
     *body_len = env_len + name_len + sizeof(FCFGProtoListConfigReq);
 }
 
-int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
+int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array,
+        int *resp_count)
 {
     int size;
     int config_size;
     int index;
     short count;
     int ret;
+    FCFGConfigEntry *tmp;
+    FCFGConfigEntry *rows;
     FCFGProtoListConfigRespBodyPart *list_config_resp_body_proto;
     FCFGProtoListConfigRespHeader *list_config_resp_header_proto =
         (FCFGProtoListConfigRespHeader *)buff;
     count = buff2short(list_config_resp_header_proto->count);
+    *resp_count = count;
     if (count <= 0) {
-        fprintf(stderr, "list config response count %d\n", count);
         return 0;
     }
 
     list_config_resp_body_proto =
         (FCFGProtoListConfigRespBodyPart *)(list_config_resp_header_proto + 1);
-    array->rows = (FCFGConfigEntry *)malloc(sizeof(FCFGConfigEntry) * count);
-    if (array->rows == NULL) {
+
+    size = sizeof(FCFGConfigEntry) * (count + array->count);
+    tmp = (FCFGConfigEntry *)malloc(size);
+    if (tmp == NULL) {
         fprintf(stderr, "file: "__FILE__", line: %d, "
-                "malloc %ld bytes fail", __LINE__, sizeof(FCFGConfigEntry));
+                "malloc %d bytes fail", __LINE__, size);
         return ENOMEM;
     }
-    memset(array->rows, 0, sizeof(FCFGConfigEntry) * count);
+    memset(tmp, 0, size);
+    if (array->count && array->rows) {
+        memcpy(tmp, array->rows, array->count * sizeof(FCFGConfigEntry));
+        free(array->rows);
+        array->rows = NULL;
+    }
+    array->rows = tmp;
+    rows = array->rows + array->count;
 
     size = sizeof(FCFGProtoListConfigRespHeader);
     for (index = 0; index < count; index ++) {
         ret = fcfg_admin_config_set_entry((FCFGProtoListConfigRespBodyPart *)(buff + size),
-                array->rows + index, &config_size);
+                rows + index, &config_size);
         if (ret) {
             break;
         }
@@ -133,7 +145,8 @@ int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
 }
 
 int fcfg_admin_list_config_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGConfigArray *array)
+        FCFGResponseInfo *resp_info, int network_timeout,
+        FCFGConfigArray *array, int *resp_count)
 {
     char buff[FCFG_CONFIG_VALUE_SIZE + 1024];
     int ret;
@@ -151,9 +164,8 @@ int fcfg_admin_list_config_response(ConnectionInfo *join_conn,
         return -1;
     }
 
-    return fcfg_admin_extract_to_array(buff, resp_info->body_len, array);
+    return fcfg_admin_extract_to_array(buff, resp_info->body_len, array, resp_count);
 }
-
 
 int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
 {
@@ -162,21 +174,22 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
     int body_len;
     int size;
     int offset;
-    int i;
     int count;
+    int resp_count;
+    int left_count;
     FCFGResponseInfo resp_info;
     FCFGProtoHeader *fcfg_header_proto;
 
+    offset = 0;
     count = FCFG_ADMIN_LIST_REQUEST_COUNT;
-    offset = g_fcfg_admin_list_config.limit / FCFG_ADMIN_LIST_REQUEST_COUNT + 1;
-    if (g_fcfg_admin_list_config.limit < FCFG_ADMIN_LIST_REQUEST_COUNT) {
-        offset = 1;
-        count = g_fcfg_admin_list_config.limit;
-    }
-    for (i = 0; i < offset; i ++) {
+    left_count = g_fcfg_admin_list_config.limit;
+    while (left_count > 0 || (g_fcfg_admin_list_config.limit == 0)) {
+        if (g_fcfg_admin_list_config.limit != 0) {
+            count = (left_count > count) ? count : left_count;
+        }
         fcfg_header_proto = (FCFGProtoHeader *)buff;
         fcfg_set_admin_list_config(buff + sizeof(FCFGProtoHeader), &body_len,
-                i, count);
+                offset, count);
         fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_LIST_CONFIG_REQ, body_len);
         size = sizeof(FCFGProtoHeader) + body_len;
         ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
@@ -195,16 +208,24 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
             break;
         } else {
             ret = fcfg_admin_list_config_response(join_conn, &resp_info,
-                    g_fcfg_admin_vars.network_timeout, array);
+                    g_fcfg_admin_vars.network_timeout, array, &resp_count);
             if (ret) {
                 fprintf(stderr, "fcfg_admin_list_config_response fail\n");
                 break;
             }
+            if (resp_count == 0) {
+                break;
+            }
+        }
+
+        offset += resp_count;
+        if (g_fcfg_admin_list_config.limit != 0) {
+            left_count -= resp_count;
         }
     }
 
     if (ret == 0) {
-        fprintf(stderr, "get config success !\n");
+        fprintf(stderr, "list config success !\n");
     }
     return ret;
 }
@@ -218,7 +239,7 @@ int main (int argc, char **argv)
     memset(&g_fcfg_admin_list_config, 0,
             sizeof(FCFGAdminListConfigGlobal));
 
-    if (argc < 7) {
+    if (argc < 5) {
         usage(argv[0]);
         return 1;
     }
@@ -228,10 +249,6 @@ int main (int argc, char **argv)
         return 0;
     }
 
-    if (g_fcfg_admin_list_config.limit == 0) {
-        fprintf(stderr, "limit is 0 !\n");
-        return 0;
-    }
     log_init2();
 
     ret = fcfg_admin_load_config(g_fcfg_admin_list_config.config_file);
@@ -253,7 +270,9 @@ int main (int argc, char **argv)
     }
 
     ret = fcfg_admin_list_config(&array, join_conn);
-    fcfg_admin_print_config_array(&array);
+    if (ret == 0) {
+        fcfg_admin_print_config_array(&array);
+    }
 
 END:
     fcfg_disconn_config_server(join_conn);

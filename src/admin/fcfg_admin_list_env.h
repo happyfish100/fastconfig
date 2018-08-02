@@ -14,9 +14,6 @@ extern "C" {
 
 extern FCFGAdminListEnvGlobal g_fcfg_admin_list_env;
 
-#define FCFG_ADMIN_LIST_REQUEST_MAX_COUNT   50
-#define FCFG_ADMIN_LIST_REQUEST_COUNT       20
-
 #ifdef __cplusplus
 }
 #endif

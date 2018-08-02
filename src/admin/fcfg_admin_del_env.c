@@ -16,7 +16,7 @@
 #include "fcfg_admin_del_env.h"
 
 static bool show_usage = false;
-FCFGAdminDelEnvGlobal g_fcfg_admin_del_env;
+FCFGAdminDelEnvGlobal g_fcfg_admin_del_env = {0};
 static void usage(char *program)
 {
     fprintf(stderr, "Usage: %s options, the options as:\n"

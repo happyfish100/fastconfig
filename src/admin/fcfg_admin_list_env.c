@@ -141,7 +141,7 @@ int fcfg_admin_list_env (FCFGEnvArray *array, ConnectionInfo *join_conn)
     ret = fcfg_admin_check_response(join_conn,
             &resp_info, g_fcfg_admin_vars.network_timeout, FCFG_PROTO_LIST_ENV_RESP);
     if (ret) {
-        fprintf(stderr, "list config fail.err info: %s\n",
+        fprintf(stderr, "list env fail.err info: %s\n",
                 resp_info.error.message);
     } else {
         ret = fcfg_admin_list_env_response(join_conn, &resp_info,
@@ -152,7 +152,7 @@ int fcfg_admin_list_env (FCFGEnvArray *array, ConnectionInfo *join_conn)
     }
 
     if (ret == 0) {
-        fprintf(stderr, "get env success !\n");
+        fprintf(stderr, "list env success !\n");
     }
     return ret;
 }
@@ -174,7 +174,6 @@ int main (int argc, char **argv)
         return 0;
     }
 
-    g_fcfg_admin_list_env.limit = FCFG_ADMIN_LIST_REQUEST_MAX_COUNT;
     log_init2();
 
     ret = fcfg_admin_load_config(g_fcfg_admin_list_env.config_file);

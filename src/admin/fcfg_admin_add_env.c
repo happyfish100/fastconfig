@@ -16,7 +16,7 @@
 #include "fcfg_admin_add_env.h"
 
 static bool show_usage = false;
-FCFGAdminAddEnvGlobal g_fcfg_admin_add_env;
+FCFGAdminAddEnvGlobal g_fcfg_admin_add_env = {0};
 static void usage(char *program)
 {
     fprintf(stderr, "Usage: %s options, the options as:\n"

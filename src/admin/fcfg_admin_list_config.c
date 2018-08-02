@@ -34,7 +34,7 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:n:l::")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:n::l::")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
@@ -55,7 +55,9 @@ static void parse_args(int argc, char **argv)
                 break;
         }
     }
-    if (found == 0) {
+    if (found == 0 ||
+        g_fcfg_admin_list_config.config_file == NULL ||
+        g_fcfg_admin_list_config.config_env == NULL) {
         show_usage = true;
     }
 }
@@ -87,7 +89,7 @@ void fcfg_set_admin_list_config(char *buff,
     *body_len = env_len + name_len + sizeof(FCFGProtoListConfigReq);
 }
 
-int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array,
+static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array,
         int *resp_count)
 {
     int size;
@@ -230,7 +232,7 @@ int fcfg_admin_list_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
     return ret;
 }
 
-int main (int argc, char **argv)
+int fcfg_admin_config_list (int argc, char **argv)
 {
     int ret;
     ConnectionInfo *join_conn = NULL;

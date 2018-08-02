@@ -51,7 +51,10 @@ static void parse_args(int argc, char **argv)
                 break;
         }
     }
-    if (found == 0) {
+    if (found == 0 ||
+        g_fcfg_admin_get_vars.config_file == NULL ||
+        g_fcfg_admin_get_vars.config_env == NULL ||
+        g_fcfg_admin_get_vars.config_name == NULL) {
         show_usage = true;
     }
 }
@@ -72,7 +75,7 @@ void fcfg_set_admin_get_config(char *buff,
     *body_len = sizeof(FCFGProtoGetConfigReq) + env_len + name_len;
 }
 
-int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
+static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
 {
     int size;
     int ret;
@@ -153,7 +156,7 @@ int fcfg_admin_get_config (FCFGConfigArray *array, ConnectionInfo *join_conn)
     return ret;
 }
 
-int main (int argc, char **argv)
+int fcfg_admin_config_get (int argc, char **argv)
 {
     int ret;
     ConnectionInfo *join_conn = NULL;

@@ -1,30 +1,35 @@
-.SUFFIXES: .c .o
+.SUFFIXES: .c .lo
 
-COMPILE = $(CC)  -Wall -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -g -O0 -DDEBUG_FLAG
+TARGET_PATH=/usr/local/bin
+CONFIG_PATH=/usr/local/etc
+
+COMPILE = $(CC) -O0 -Wall -D_FILE_OFFSET_BITS=64 -g
 INC_PATH = -I.. -I/usr/local/include
-LIB_PATH = -L/usr/local/lib -lfastcommon -lpthread
-TARGET_PATH = /usr/bin
-CONFIG_PATH = $(TARGET_CONF_PATH)
+LIB_PATH = -L/usr/local/lib -lfastcommon
 
-ALL_OBJS = ../common/fcfg_proto.o fcfg_admin_func.o
+SHARED_OBJS = ../common/fcfg_proto.lo fcfg_admin_func.lo
+ADMIN_SHARED_OBJS = fcfg_admin_set_config.lo fcfg_admin_get_config.lo \
+                    fcfg_admin_del_config.lo fcfg_admin_list_config.lo \
+                    fcfg_admin_add_env.lo fcfg_admin_del_env.lo \
+                    fcfg_admin_get_env.lo fcfg_admin_list_env.lo
+ALL_OBJS = $(SHARED_OBJS) $(ADMIN_SHARED_OBJS)
 
-ALL_PRGS = fcfg_admin_set_config fcfg_admin_get_config fcfg_admin_del_config \
-           fcfg_admin_list_config fcfg_admin_add_env fcfg_admin_del_env \
-           fcfg_admin_get_env fcfg_admin_list_env
+ALL_HEADERS = fcfg_admin.h
+ALL_PRGS =
+SHARED_LIBS = libfcfgadmin.so
+ALL_LIBS = $(SHARED_LIBS)
 
-all: $(ALL_PRGS)
-
-$(ALL_PRGS): $(ALL_OBJS)
-
-.o:
-	$(COMPILE) -o $@ $<  $(LIB_PATH) $(INC_PATH)
+all: $(ALL_OBJS) $(ALL_PRGS) $(ALL_LIBS)
+libfcfgadmin.so:
+	$(COMPILE) -o $@ $< -shared $(ALL_OBJS) $(LIB_PATH)
 .c:
-	$(COMPILE) -o $@ $<  $(ALL_OBJS) $(LIB_PATH) $(INC_PATH)
-.c.o:
-	$(COMPILE) -c -o $@ $<  $(INC_PATH)
-
+	$(COMPILE) -o $@ $< $(ALL_OBJS) $(LIB_PATH) $(INC_PATH)
+.c.lo:
+	$(COMPILE) -c -fPIC -o $@ $<  $(INC_PATH)
 install:
-	mkdir -p $(TARGET_PATH)
-	cp -f $(ALL_PRGS) $(TARGET_PATH)
+	mkdir -p $(DESTDIR)/usr/local/lib
+	mkdir -p $(DESTDIR)/usr/lib
+	install -m 755 $(SHARED_LIBS) $(DESTDIR)/usr/local/lib
+	cp -f $(ALL_HEADERS) /usr/local/include
 clean:
-	rm -f *.o $(ALL_OBJS) $(ALL_PRGS)
+	rm -f $(ALL_OBJS) $(ALL_PRGS) $(ALL_LIBS)

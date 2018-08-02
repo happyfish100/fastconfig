@@ -47,7 +47,9 @@ static void parse_args(int argc, char **argv)
                 break;
         }
     }
-    if (found == 0) {
+    if (found == 0 ||
+        g_fcfg_admin_get_env.config_file == NULL ||
+        g_fcfg_admin_get_env.config_env == NULL) {
         show_usage = true;
     }
 }
@@ -148,7 +150,7 @@ int fcfg_admin_get_env (FCFGEnvArray *array, ConnectionInfo *join_conn)
     return ret;
 }
 
-int main (int argc, char **argv)
+int fcfg_admin_env_get (int argc, char **argv)
 {
     int ret;
     ConnectionInfo *join_conn = NULL;

@@ -17,8 +17,6 @@
 #include "fastcommon/logger.h"
 #include "fastcommon/sockopt.h"
 #include "fastcommon/sched_thread.h"
-//#include "sf/sf_global.h"
-//#include "sf/sf_service.h"
 #include "sf/sf_util.h"
 #include "common/fcfg_proto.h"
 #include "fastcommon/sockopt.h"

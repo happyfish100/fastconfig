@@ -114,10 +114,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    linfo("destroying.");
     sf_service_destroy();
     delete_pid_file(g_pid_filename);
-    linfo("program exit normally.");
+    logInfo("file: "__FILE__", line: %d, "
+            "program exit normally.\n", __LINE__);
     log_destroy();
     return 0;
 

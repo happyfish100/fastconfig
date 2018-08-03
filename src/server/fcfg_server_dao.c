@@ -687,10 +687,18 @@ int fcfg_server_dao_add_env(FCFGMySQLContext *context, const char *env)
 {
     int affected_rows;
     int result;
+    FCFGEnvEntry entry;
     const char *update_sql = "UPDATE fast_environment SET status = 0, "
         "version = ? WHERE env = ?";
     const char *insert_sql = "INSERT INTO fast_environment "
         "(version, env, status) VALUES (?, ?, 0)";
+
+    if ((result=fcfg_server_dao_get_env(context, env, &entry)) == 0) {
+        return EEXIST;
+    }
+    if (result != ENOENT) {
+        return result;
+    }
 
     affected_rows = 0;
     if ((result=fcfg_server_dao_env_execute(context, update_sql, env,
@@ -707,9 +715,22 @@ int fcfg_server_dao_add_env(FCFGMySQLContext *context, const char *env)
 
 int fcfg_server_dao_del_env(FCFGMySQLContext *context, const char *env)
 {
+    int affected_rows;
+    int result;
+    FCFGEnvEntry entry;
     const char *delete_sql = "UPDATE fast_environment SET status = 1, "
         "version = ? WHERE env = ?";
-    return fcfg_server_dao_env_execute(context, delete_sql, env, NULL);
+
+    if ((result=fcfg_server_dao_get_env(context, env, &entry)) != 0) {
+        return result;
+    }
+
+    if ((result=fcfg_server_dao_env_execute(context, delete_sql, env,
+                    &affected_rows)) != 0)
+    {
+        return result;
+    }
+    return affected_rows >= 1 ? 0 : ENOENT;
 }
 
 static int fcfg_server_dao_do_list_env(FCFGMySQLContext *context, const char *env,

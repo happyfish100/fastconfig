@@ -3,8 +3,6 @@
 #include "fastcommon/ini_file_reader.h"
 #include "fastcommon/shared_func.h"
 #include "fastcommon/logger.h"
-#include "sf/sf_global.h"
-#include "sf/sf_service.h"
 #include "sf/sf_util.h"
 #include "common/fcfg_types.h"
 #include "common/fcfg_proto.h"
@@ -57,7 +55,7 @@ int fcfg_agent_load_config(const char *filename)
                     &thread_stack_size)) != 0) {
         return result;
     }
-    g_sf_global_vars.thread_stack_size = (int)thread_stack_size;
+    g_agent_global_vars.thread_stack_size = (int)thread_stack_size;
 
     g_agent_global_vars.sync_log_buff_interval = iniGetIntValue(NULL,
             "sync_log_buff_interval", &ini_context,
@@ -111,11 +109,10 @@ int fcfg_agent_load_config(const char *filename)
           g_agent_global_vars.network_timeout,
           g_agent_global_vars.connect_timeout);
 
-    sf_log_config_ex(NULL);
-
     iniFreeContext(&ini_context);
     return 0;
 }
+
 int fcfg_proto_set_join_req(char *buff, char *env, int64_t version, int *req_len)
 {
     FCFGProtoHeader *fcfg_header_pro;

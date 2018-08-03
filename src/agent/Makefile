@@ -2,14 +2,13 @@
 
 COMPILE = $(CC)  -Wall -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -g -O2 -DDEBUG_FLAG
 INC_PATH = -I.. -I/usr/local/include
-LIB_PATH =  -L/usr/local/lib -lfastcommon -lserverframe -lshmcache -lpthread \
-            -ldl
+LIB_PATH =  -L/usr/local/lib -lfastcommon -lserverframe -lshmcache -lpthread
 TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 
 ALL_OBJS = ../common/fcfg_proto.o fcfg_agent_func.o fcfg_agent_handler.o fcfg_agent_global.o
 
-ALL_PRGS = fcfg_agent
+ALL_PRGS = fcfg_agentd
 
 all: $(ALL_PRGS)
 

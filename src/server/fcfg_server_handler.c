@@ -205,10 +205,19 @@ static int fcfg_proto_deal_add_del_env(struct fast_task_info *task,
     env = task->data + sizeof(FCFGProtoHeader);
     *(env + request->body_len) = '\0';
     if (request->cmd == FCFG_PROTO_ADD_ENV_REQ) {
-        return fcfg_server_dao_add_env(mysql_context, env);
+        result = fcfg_server_dao_add_env(mysql_context, env);
+        if (result == EEXIST) {
+            response->error.length = sprintf(response->error.message,
+                    "env: %s already exist", env);
+        }
     } else {
-        return fcfg_server_dao_del_env(mysql_context, env);
+        result = fcfg_server_dao_del_env(mysql_context, env);
+        if (result == ENOENT) {
+            response->error.length = sprintf(response->error.message,
+                    "env: %s not exist", env);
+        }
     }
+    return result;
 }
 
 static int fcfg_proto_deal_get_env(struct fast_task_info *task,
@@ -384,7 +393,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
                 response->error.message);
         return result;
     }
- 
+
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
     return fcfg_server_dao_set_config(mysql_context, env, name, value.str);
 }
@@ -765,7 +774,8 @@ int fcfg_server_deal_task(struct fast_task_info *task)
         {
             response.error.length = sprintf(response.error.message,
                     "please join first");
-            lerr("client ip: %s, cmd: %d, %s",
+            logError("file: "__FILE__", line: %d, "
+                    "client ip: %s, cmd: %d, %s", __LINE__,
                     task->client_ip, request.cmd, response.error.message);
             result = -EINVAL;
             break;
@@ -784,7 +794,9 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                     expect_waiting_type = FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP;
                 }
                 if ((task_arg->waiting_type & expect_waiting_type) == 0) {
-                    lerr("client ip: %s, unknow expect cmd: %d, body length: %d",
+                    logError("file: "__FILE__", line: %d, "
+                            "client ip: %s, unknow expect cmd: %d, "
+                            "body length: %d", __LINE__,
                             task->client_ip, request.cmd, request.body_len);
                     return -EINVAL;
                 }
@@ -831,7 +843,8 @@ int fcfg_server_deal_task(struct fast_task_info *task)
             default:
                 response.error.length = sprintf(response.error.message,
                     "unkown cmd: %d", request.cmd);
-                lerr("client ip: %s, unknow cmd: %d, body length: %d",
+                logError("file: "__FILE__", line: %d, client ip: %s, "
+                        "unknow cmd: %d, body length: %d", __LINE__,
                         task->client_ip, request.cmd, request.body_len);
                 result = -EINVAL;
                 break;

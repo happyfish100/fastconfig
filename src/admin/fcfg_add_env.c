@@ -4,11 +4,13 @@
 
 static bool show_usage = false;
 char *config_file = NULL;
+char *env = NULL;
 static void usage(char *program)
 {
     fprintf(stderr, "Usage: %s options, the options as:\n"
             "\t -h help\n"
             "\t -c <config-filename>\n"
+            "\t -e <env>\n"
             "\n", program);
 }
 static void parse_args(int argc, char **argv)
@@ -16,11 +18,14 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
                 config_file = optarg;
+                break;
+            case 'e':
+                env = optarg;
                 break;
             case 'h':
             default:
@@ -29,27 +34,17 @@ static void parse_args(int argc, char **argv)
         }
     }
     if (found == 0 ||
-        config_file == NULL) {
+        config_file == NULL ||
+        env == NULL) {
         show_usage = true;
     }
 }
 
-void static fcfg_admin_print_env_array (FCFGEnvArray *array)
-{
-    int i;
-
-    fprintf(stderr,"Env count:%d\n", array->count);
-    for (i = 0; i < array->count; i++) {
-        fprintf(stderr, "Env %d: %s\n", i, (array->rows+i)->env.str);
-    }
-}
 int main (int argc, char **argv)
 {
     int ret;
     struct fcfg_context fcfg_context;
-    FCFGEnvArray array;
-    memset(&array, 0, sizeof(FCFGEnvArray));
-    if (argc < 3) {
+    if (argc < 5) {
         usage(argv[0]);
         return 0;
     }
@@ -65,10 +60,7 @@ int main (int argc, char **argv)
         log_destroy();
         return ret;
     }
-    ret = fcfg_admin_env_list(&fcfg_context, &array);
-    if (ret == 0) {
-        fcfg_admin_print_env_array(&array); 
-    }
+    ret = fcfg_admin_env_add(&fcfg_context, env);
     log_destroy();
     return ret;
 }

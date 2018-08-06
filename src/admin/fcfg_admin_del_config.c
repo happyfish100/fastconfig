@@ -15,11 +15,12 @@
 #include "fcfg_admin_func.h"
 #include "fcfg_admin_del_config.h"
 
+/*
 static bool show_usage = false;
 FCFGAdminDelGlobal g_fcfg_admin_del_vars;
 static void usage(char *program)
 {
-    fprintf(stderr, "Usage: %s options, the options as:\n"
+    logInfo("file: "__FILE__", line: %d""Usage: %s options, the options as:\n"
             "\t -h help\n"
             "\t -c <config-filename>\n"
             "\t -e <config-env>\n"
@@ -57,25 +58,27 @@ static void parse_args(int argc, char **argv)
         show_usage = true;
     }
 }
+*/
 
-void fcfg_set_admin_del_config(char *buff,
-        int *body_len)
+void fcfg_set_admin_del_config(char *buff, const char *env,
+        const char *config_name, int *body_len)
 {
     FCFGProtoDelConfigReq *del_config_req = (FCFGProtoDelConfigReq *)buff;
-    unsigned char env_len = strlen(g_fcfg_admin_del_vars.config_env);
-    unsigned char name_len = strlen(g_fcfg_admin_del_vars.config_name);
+    unsigned char env_len = strlen(env);
+    unsigned char name_len = strlen(config_name);
     
     del_config_req->env_len = env_len;
     del_config_req->name_len = name_len;
     memcpy(del_config_req->env,
-           g_fcfg_admin_del_vars.config_env,
+           env,
            env_len);
-    memcpy(del_config_req->env + env_len, g_fcfg_admin_del_vars.config_name,
+    memcpy(del_config_req->env + env_len, config_name,
            name_len);
     *body_len = sizeof(FCFGProtoDelConfigReq) + env_len + name_len;
 }
 
-int fcfg_admin_del_config (ConnectionInfo *join_conn)
+int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
+        const char *env, const char *config_name)
 {
     int ret;
     char buff[1024];
@@ -83,68 +86,46 @@ int fcfg_admin_del_config (ConnectionInfo *join_conn)
     int size;
     FCFGResponseInfo resp_info;
     FCFGProtoHeader *fcfg_header_proto;
+    ConnectionInfo *join_conn;
+    join_conn = fcfg_context->join_conn + fcfg_context->join_index;
 
     fcfg_header_proto = (FCFGProtoHeader *)buff;
-    fcfg_set_admin_del_config(buff + sizeof(FCFGProtoHeader), &body_len);
+    fcfg_set_admin_del_config(buff + sizeof(FCFGProtoHeader), env, config_name, &body_len);
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_DEL_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
+            fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        fprintf(stderr, "send_and_recv_response_header fail. ret:%d, %s\n",
-                ret, strerror(ret));
+        logInfo("file: "__FILE__", line: %d"
+                "send_and_recv_response_header fail. ret:%d, %s\n",
+                __LINE__, ret, strerror(ret));
         return ret;
     }
     ret = fcfg_admin_check_response(join_conn, &resp_info,
-            g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
+            fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        fprintf(stderr, "del config fail.err info: %s\n",
-                resp_info.error.message);
+        logInfo("file: "__FILE__", line: %d"
+                "del config fail.err info: %s\n",
+                __LINE__, resp_info.error.message);
     } else {
-        fprintf(stderr, "del config success !\n");
+        logInfo("file: "__FILE__", line: %d"
+                "del config success !", __LINE__);
     }
 
     return ret;
 }
 
-int fcfg_admin_config_del (int argc, char **argv)
+int fcfg_admin_config_del (struct fcfg_context *fcfg_context,
+        const char *env, const char *config_name)
 {
     int ret;
-    ConnectionInfo *join_conn = NULL;
 
-    if (argc < 7) {
-        usage(argv[0]);
-        return 1;
-    }
-    parse_args(argc, argv);
-    if (show_usage) {
-        usage(argv[0]);
-        return 0;
-    }
-
-    log_init2();
-
-    ret = fcfg_admin_load_config(g_fcfg_admin_del_vars.config_file);
-    if (ret) {
-        fprintf(stderr, "fcfg_admin_load_config fail:%s, ret:%d, %s\n",
-                g_fcfg_admin_del_vars.config_file, ret, strerror(ret));
-        goto END;
-    }
-    ret = fcfg_do_conn_config_server(&join_conn);
-    if (ret) {
-        goto END;
-    }
-
-    if ((ret = fcfg_send_admin_join_request(join_conn,
-            g_fcfg_admin_vars.network_timeout,
-            g_fcfg_admin_vars.connect_timeout)) != 0) {
-        log_destroy();
+    if ((ret = fcfg_send_admin_join_request(fcfg_context,
+            fcfg_context->network_timeout,
+            fcfg_context->connect_timeout)) != 0) {
         return ret;
     }
 
-    ret = fcfg_admin_del_config(join_conn);
-END:
-    fcfg_disconn_config_server(join_conn);
-    log_destroy();
+    ret = fcfg_admin_del_config(fcfg_context, env, config_name);
     return ret;
 }

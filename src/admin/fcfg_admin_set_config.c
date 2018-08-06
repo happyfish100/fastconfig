@@ -15,11 +15,12 @@
 #include "fcfg_admin_func.h"
 #include "fcfg_admin_set_config.h"
 
+/*
 static bool show_usage = false;
 FCFGAdminSetGlobal g_fcfg_admin_set_vars;
 static void usage(char *program)
 {
-    fprintf(stderr, "Usage: %s options, the options as:\n"
+    logInfo("file: "__FILE__", line: %d""Usage: %s options, the options as:\n"
             "\t -h help\n"
             "\t -c <config-filename>\n"
             "\t -e <config-env>\n"
@@ -62,101 +63,81 @@ static void parse_args(int argc, char **argv)
         show_usage = true;
     }
 }
-
-void fcfg_set_admin_set_config(char *buff,
+*/
+void fcfg_set_admin_set_config(char *buff,const char *env,
+        const char *config_name, const char *config_value,
         int *body_len)
 {
     FCFGProtoSetConfigReq *set_config_req = (FCFGProtoSetConfigReq *)buff;
-    unsigned char env_len = strlen(g_fcfg_admin_set_vars.config_env);
-    unsigned char name_len = strlen(g_fcfg_admin_set_vars.config_name);
-    int value_len = strlen(g_fcfg_admin_set_vars.config_value);
+    unsigned char env_len = strlen(env);
+    unsigned char name_len = strlen(config_name);
+    int value_len = strlen(config_value);
 
     set_config_req->env_len = env_len;
     set_config_req->name_len = name_len;
     int2buff(value_len, set_config_req->value_len);
-    memcpy(set_config_req->env, g_fcfg_admin_set_vars.config_env,
+    memcpy(set_config_req->env, env,
            env_len);
     memcpy(set_config_req->env + env_len,
-           g_fcfg_admin_set_vars.config_name,
+           config_name,
            name_len);
     memcpy(set_config_req->env + env_len + name_len,
-           g_fcfg_admin_set_vars.config_value,
+           config_value,
            value_len);
     *body_len = sizeof(FCFGProtoSetConfigReq) + env_len + name_len + value_len;
 }
 
-int fcfg_admin_set_config (ConnectionInfo *join_conn)
+int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
+        const char *env, const char *config_name, const char *config_value)
 {
     int ret;
     char buff[1024];
     int body_len;
     int size;
     FCFGResponseInfo resp_info;
+    ConnectionInfo *join_conn;
     FCFGProtoHeader *fcfg_header_proto;
 
+    join_conn = fcfg_context->join_conn + fcfg_context->join_index;
     fcfg_header_proto = (FCFGProtoHeader *)buff;
-    fcfg_set_admin_set_config(buff + sizeof(FCFGProtoHeader), &body_len);
+    fcfg_set_admin_set_config(buff + sizeof(FCFGProtoHeader), env, config_name,
+            config_value, &body_len);
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_SET_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            g_fcfg_admin_vars.network_timeout, g_fcfg_admin_vars.connect_timeout);
+            fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        fprintf(stderr, "send_and_recv_response_header fail. ret:%d, %s\n",
-                ret, strerror(ret));
+        logInfo("file: "__FILE__", line: %d"
+                "send_and_recv_response_header fail. ret:%d, %s",
+                __LINE__, ret, strerror(ret));
         return ret;
     }
     ret = fcfg_admin_check_response(join_conn, &resp_info,
-            g_fcfg_admin_vars.network_timeout, FCFG_PROTO_ACK);
+            fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        fprintf(stderr, "set config fail.err info: %s\n",
-                resp_info.error.message);
+        logInfo("file: "__FILE__", line: %d"
+                "set config fail.err info: %s",
+                __LINE__, resp_info.error.message);
     } else {
-        fprintf(stderr, "set config success !\n");
+        logInfo("file: "__FILE__", line: %d"
+                "set config success !", __LINE__);
     }
 
     return ret;
 }
 
-int fcfg_admin_config_set (int argc, char **argv)
+int fcfg_admin_config_set (struct fcfg_context *fcfg_context,
+        const char *env, const char *config_name, const char *config_value)
 {
     int ret;
-    ConnectionInfo *join_conn = NULL;
 
-    if (argc < 9) {
-        usage(argv[0]);
-        return 1;
-    }
-    parse_args(argc, argv);
-    if (show_usage) {
-        usage(argv[0]);
-        return 0;
+    if ((ret = fcfg_send_admin_join_request(fcfg_context,
+            fcfg_context->network_timeout,
+            fcfg_context->connect_timeout)) != 0) {
+        return ret;
     }
 
-    log_init2();
+    ret = fcfg_admin_set_config(fcfg_context, env, config_name, config_value);
 
-    ret = fcfg_admin_load_config(g_fcfg_admin_set_vars.config_file);
-    if (ret) {
-        fprintf(stderr, "fcfg_admin_load_config fail:%s, ret:%d, %s\n",
-                g_fcfg_admin_set_vars.config_file, ret, strerror(ret));
-        goto END;
-    }
-
-    ret = fcfg_do_conn_config_server(&join_conn);
-    if (ret) {
-        goto END;
-    }
-
-    if ((ret = fcfg_send_admin_join_request(join_conn,
-            g_fcfg_admin_vars.network_timeout,
-            g_fcfg_admin_vars.connect_timeout)) != 0) {
-        fcfg_disconn_config_server(join_conn);
-        goto END;
-    }
-
-    ret = fcfg_admin_set_config(join_conn);
-
-END:
-    fcfg_disconn_config_server(join_conn);
-    log_destroy();
     return ret;
 }

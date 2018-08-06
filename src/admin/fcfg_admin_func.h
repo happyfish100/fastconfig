@@ -1,6 +1,8 @@
 #ifndef _FCFG_ADMIN_FUNC_H
 #define _FCFG_ADMIN_FUNC_H
 
+#include "fcfg_admin.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,16 +16,16 @@ typedef struct fcfg_admin {
     ConnectionInfo *join_conn;
 } FCFGAdminGlobal;
 
-extern FCFGAdminGlobal g_fcfg_admin_vars;
-int fcfg_send_admin_join_request(ConnectionInfo *join_conn, int network_timeout,
+int fcfg_send_admin_join_request(struct fcfg_context *fcfg_context, int network_timeout,
         int connect_timeout);
 int fcfg_admin_check_response(ConnectionInfo *join_conn,
         FCFGResponseInfo *resp_info, int network_timeout,
         unsigned char resp_cmd);
 void fcfg_set_admin_header (FCFGProtoHeader *fcfg_header_proto,
         unsigned char cmd, int body_len);
-int fcfg_admin_load_config(const char *filename);
-int fcfg_do_conn_config_server (ConnectionInfo **conn);
+int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
+        const char *config_filename);
+int fcfg_do_conn_config_server (struct fcfg_context *fcfg_context);
 void fcfg_disconn_config_server (ConnectionInfo *conn);
 int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
         FCFGEnvEntry *rows, int *env_size);

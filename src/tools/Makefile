@@ -2,7 +2,7 @@
 
 COMPILE = $(CC)  -Wall -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -g -O0 -DDEBUG_FLAG
 INC_PATH = -I.. -I/usr/local/include
-LIB_PATH = -L/usr/local/lib -lfcfgadmin
+LIB_PATH = -L/usr/local/lib -lfastcommon -lfcfgadmin
 TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 

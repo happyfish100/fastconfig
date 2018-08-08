@@ -16,54 +16,6 @@
 #include "fcfg_admin_func.h"
 #include "fcfg_admin_list_config.h"
 
-/*
-static bool show_usage = false;
-FCFGAdminListConfigGlobal g_fcfg_admin_list_config;
-static void usage(char *program)
-{
-    logInfo("file: "__FILE__", line: %d""Usage: %s options, the options as:\n"
-            "\t -h help\n"
-            "\t -c <config-filename>\n"
-            "\t -e <config-env>\n"
-            "\t -n <config-name>\n"
-            "\t -l <limit>\n"
-            "\n", program);
-}
-
-static void parse_args(int argc, char **argv)
-{
-    int ch;
-    int found = 0;
-
-    while ((ch = getopt(argc, argv, "hc:e:n::l::")) != -1) {
-        found = 1;
-        switch (ch) {
-            case 'c':
-                g_fcfg_admin_list_config.config_file = optarg;
-                break;
-            case 'e':
-                g_fcfg_admin_list_config.config_env = optarg;
-                break;
-            case 'n':
-                g_fcfg_admin_list_config.config_name = optarg;
-                break;
-            case 'l':
-                g_fcfg_admin_list_config.limit = atoi(optarg);
-                break;
-            case 'h':
-            default:
-                show_usage = true;
-                break;
-        }
-    }
-    if (found == 0 ||
-        g_fcfg_admin_list_config.config_file == NULL ||
-        g_fcfg_admin_list_config.config_env == NULL) {
-        show_usage = true;
-    }
-}
-*/
-
 void fcfg_set_admin_list_config(char *buff, const char *env,
         const char *config_name,
         int *body_len, int offset, int count)
@@ -137,9 +89,9 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *ar
         array->count ++;
     }
     if (ret || (size != len)) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "fcfg_admin_config_set_entry fail"
-                " ret:%d, count:%d, size:%d, len:%d", __LINE__, ret, count, size, len);
+                " ret:%d, count:%d, size:%d, len:%d ", __LINE__, ret, count, size, len);
         return -1;
     }
 
@@ -156,15 +108,15 @@ int fcfg_admin_list_config_response(ConnectionInfo *join_conn,
         return -1;
     }
     if (resp_info->body_len > sizeof(buff)) {
-        logInfo("file: "__FILE__", line: %d"
-                "body_len is too long %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "body_len is too long %d ", __LINE__, resp_info->body_len);
         return -1;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
-                "tcprecvdata_nb_ex fail %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
         return -1;
     }
 
@@ -203,7 +155,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
         ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
                 fcfg_context->network_timeout, fcfg_context->connect_timeout);
         if (ret) {
-            logInfo("file: "__FILE__", line: %d"
+            logInfo("file: "__FILE__", line: %d "
                     "send_and_recv_response_header fail. ret:%d, %s\n",
                     __LINE__, ret, strerror(ret));
             return ret;
@@ -212,7 +164,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
                 &resp_info, fcfg_context->network_timeout,
                 FCFG_PROTO_LIST_CONFIG_RESP);
         if (ret) {
-            logInfo("file: "__FILE__", line: %d"
+            logInfo("file: "__FILE__", line: %d "
                     "list config fail.err info: %*.s\n",
                     __LINE__, resp_info.body_len, resp_info.error.message);
             break;
@@ -220,7 +172,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
             ret = fcfg_admin_list_config_response(join_conn, &resp_info,
                     fcfg_context->network_timeout, array, &resp_count);
             if (ret) {
-                logInfo("file: "__FILE__", line: %d"
+                logInfo("file: "__FILE__", line: %d "
                         "fcfg_admin_list_config_response fail", __LINE__);
                 break;
             }
@@ -236,7 +188,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
     }
 
     if (ret == 0) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "list config success !", __LINE__);
     }
     return ret;

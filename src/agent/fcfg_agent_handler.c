@@ -130,7 +130,10 @@ static int fcfg_set_push_config(const char *body_data,
         if (ret) {
             lerr ("shmcache_set_ex/delete fail:status:%d, %d, %s",
                     fcfg_push_body_data.status, ret, strerror(ret));
-            break;
+            if (fcfg_push_body_data.status == FCFG_CONFIG_STATUS_NORMAL) {
+                break;
+            }
+            ret = 0;
         }
 
         /* the last one is the max version that is ensured by sender */

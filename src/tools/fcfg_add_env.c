@@ -57,10 +57,12 @@ int main (int argc, char **argv)
 
     ret = fcfg_admin_init_from_file(&fcfg_context, config_file);
     if (ret) {
-        log_destroy();
-        return ret;
+        goto END;
     }
     ret = fcfg_admin_env_add(&fcfg_context, env);
+
+END:
     log_destroy();
+    fcfg_admin_destroy(&fcfg_context);
     return ret;
 }

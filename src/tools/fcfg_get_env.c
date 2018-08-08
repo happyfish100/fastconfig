@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include "fcfg_admin.h"
 #include "fastcommon/logger.h"
+#include "fcfg_func.h"
 
 static bool show_usage = false;
 char *config_file = NULL;
@@ -59,10 +60,15 @@ int main (int argc, char **argv)
 
     ret = fcfg_admin_init_from_file(&fcfg_context, config_file);
     if (ret) {
-        log_destroy();
-        return ret;
+        goto END;
     }
     ret = fcfg_admin_env_get(&fcfg_context, env, &array);
+    if (ret == 0) {
+        fcfg_print_env_array(&array);
+    }
+END:
     log_destroy();
+    fcfg_free_env_array(&array);
+    fcfg_admin_destroy(&fcfg_context);
     return ret;
 }

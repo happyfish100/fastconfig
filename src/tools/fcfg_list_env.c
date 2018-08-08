@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include "fcfg_admin.h"
 #include "fastcommon/logger.h"
+#include "fcfg_func.h"
 
 static bool show_usage = false;
 char *config_file = NULL;
@@ -34,15 +35,6 @@ static void parse_args(int argc, char **argv)
     }
 }
 
-void static fcfg_admin_print_env_array (FCFGEnvArray *array)
-{
-    int i;
-
-    fprintf(stderr,"Env count:%d\n", array->count);
-    for (i = 0; i < array->count; i++) {
-        fprintf(stderr, "Env %d: %s\n", i, (array->rows+i)->env.str);
-    }
-}
 int main (int argc, char **argv)
 {
     int ret;
@@ -62,13 +54,16 @@ int main (int argc, char **argv)
 
     ret = fcfg_admin_init_from_file(&fcfg_context, config_file);
     if (ret) {
-        log_destroy();
-        return ret;
+        goto END;
     }
     ret = fcfg_admin_env_list(&fcfg_context, &array);
     if (ret == 0) {
-        fcfg_admin_print_env_array(&array); 
+        fcfg_print_env_array(&array); 
     }
+
+END:
     log_destroy();
+    fcfg_free_env_array(&array);
+    fcfg_admin_destroy(&fcfg_context);
     return ret;
 }

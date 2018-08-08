@@ -12,11 +12,12 @@ ADMIN_SHARED_OBJS = fcfg_admin_set_config.lo fcfg_admin_get_config.lo \
                     fcfg_admin_del_config.lo fcfg_admin_list_config.lo \
                     fcfg_admin_add_env.lo fcfg_admin_del_env.lo \
                     fcfg_admin_get_env.lo fcfg_admin_list_env.lo
+
 ALL_OBJS = $(SHARED_OBJS) $(ADMIN_SHARED_OBJS)
 
 ALL_HEADERS = fcfg_admin.h
-ALL_PRGS =
 SHARED_LIBS = libfcfgadmin.so
+ALL_PRGS =
 ALL_LIBS = $(SHARED_LIBS)
 
 all: $(ALL_OBJS) $(ALL_PRGS) $(ALL_LIBS)

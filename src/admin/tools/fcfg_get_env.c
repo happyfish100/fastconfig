@@ -44,8 +44,8 @@ int main (int argc, char **argv)
 {
     int ret;
     struct fcfg_context fcfg_context;
-    FCFGEnvInfoArray array;
-    memset(&array, 0, sizeof(FCFGEnvInfoArray));
+    FCFGEnvArray array;
+    memset(&array, 0, sizeof(FCFGEnvArray));
     if (argc < 5) {
         usage(argv[0]);
         return 0;

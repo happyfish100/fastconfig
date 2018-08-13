@@ -50,8 +50,8 @@ int main (int argc, char **argv)
 {
     int ret;
     struct fcfg_context fcfg_context;
-    FCFGConfigInfoArray array;
-    memset(&array, 0, sizeof(FCFGEnvInfoArray));
+    FCFGConfigArray array;
+    memset(&array, 0, sizeof(FCFGEnvArray));
     if (argc < 7) {
         usage(argv[0]);
         return 0;

@@ -12,9 +12,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "fastcommon/sockopt.h"
-#include "common/fcfg_proto.h"
+#include "fcfg_proto.h"
 #include "fcfg_admin_func.h"
-#include "fcfg_admin_types.h"
+#include "fcfg_types.h"
 
 void fcfg_set_admin_set_config(char *buff,const char *env,
         const char *config_name, const char *config_value,
@@ -178,13 +178,13 @@ void fcfg_set_admin_get_config(char *buff, const char *env,
            name_len);
     *body_len = sizeof(FCFGProtoGetConfigReq) + env_len + name_len;
 }
-static int _extract_to_array (char *buff, int len, FCFGConfigInfoArray *array,
+static int _extract_to_array (char *buff, int len, FCFGConfigArray *array,
         int offset, int count)
 {
     int config_size;
     int size;
     int index;
-    FCFGConfigInfoEntry *rows;
+    FCFGConfigEntry *rows;
     int ret = 0;
 
     size = offset;
@@ -207,12 +207,12 @@ static int _extract_to_array (char *buff, int len, FCFGConfigInfoArray *array,
 
     return ret;
 }
-static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigInfoArray *array)
+static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *array)
 {
-    array->rows = (FCFGConfigInfoEntry *)malloc(sizeof(FCFGConfigInfoEntry));
+    array->rows = (FCFGConfigEntry *)malloc(sizeof(FCFGConfigEntry));
     if (array->rows == NULL) {
         logInfo("file: "__FILE__", line: %d, "
-                "malloc %ld bytes fail", __LINE__, sizeof(FCFGConfigInfoEntry));
+                "malloc %ld bytes fail", __LINE__, sizeof(FCFGConfigEntry));
         return ENOMEM;
     }
 
@@ -220,7 +220,7 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigInfoArray
 }
 
 int fcfg_admin_get_config_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGConfigInfoArray *array)
+        FCFGResponseInfo *resp_info, int network_timeout, FCFGConfigArray *array)
 {
     char buff[FCFG_CONFIG_VALUE_SIZE + 1024];
     int ret;
@@ -244,7 +244,7 @@ int fcfg_admin_get_config_response(ConnectionInfo *join_conn,
 }
 
 int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
-        const char *env, const char *config_name, FCFGConfigInfoArray *array)
+        const char *env, const char *config_name, FCFGConfigArray *array)
 {
     int ret;
     char buff[1024];
@@ -286,10 +286,10 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
 }
 
 int fcfg_admin_config_get (struct fcfg_context *fcfg_context,
-        const char *env, const char *config_name, FCFGConfigInfoArray *array)
+        const char *env, const char *config_name, FCFGConfigArray *array)
 {
     int ret;
-    memset(array, 0, sizeof(FCFGConfigInfoArray));
+    memset(array, 0, sizeof(FCFGConfigArray));
 
     if ((ret = fcfg_send_admin_join_request(fcfg_context,
             fcfg_context->network_timeout,
@@ -328,12 +328,12 @@ void fcfg_set_admin_list_config(char *buff, const char *env,
     *body_len = env_len + name_len + sizeof(FCFGProtoListConfigReq);
 }
 
-static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigInfoArray *array,
+static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigArray *array,
         int *resp_count)
 {
     int size;
     short count;
-    FCFGConfigInfoEntry *tmp;
+    FCFGConfigEntry *tmp;
     FCFGProtoListConfigRespHeader *list_config_resp_header_proto =
         (FCFGProtoListConfigRespHeader *)buff;
     count = buff2short(list_config_resp_header_proto->count);
@@ -342,8 +342,8 @@ static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigInfo
         return 0;
     }
 
-    size = sizeof(FCFGConfigInfoEntry) * (count + array->count);
-    tmp = (FCFGConfigInfoEntry *)malloc(size);
+    size = sizeof(FCFGConfigEntry) * (count + array->count);
+    tmp = (FCFGConfigEntry *)malloc(size);
     if (tmp == NULL) {
         logInfo("file: "__FILE__", line: %d, "
                 "malloc %d bytes fail", __LINE__, size);
@@ -351,7 +351,7 @@ static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigInfo
     }
     memset(tmp, 0, size);
     if (array->count && array->rows) {
-        memcpy(tmp, array->rows, array->count * sizeof(FCFGConfigInfoEntry));
+        memcpy(tmp, array->rows, array->count * sizeof(FCFGConfigEntry));
         free(array->rows);
         array->rows = NULL;
     }
@@ -363,7 +363,7 @@ static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigInfo
 
 int fcfg_admin_list_config_response(ConnectionInfo *join_conn,
         FCFGResponseInfo *resp_info, int network_timeout,
-        FCFGConfigInfoArray *array, int *resp_count)
+        FCFGConfigArray *array, int *resp_count)
 {
     char buff[FCFG_CONFIG_VALUE_SIZE + 1024];
     int ret;
@@ -387,7 +387,7 @@ int fcfg_admin_list_config_response(ConnectionInfo *join_conn,
 }
 
 int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
-        const char *env, const char *config_name, int limit, FCFGConfigInfoArray *array)
+        const char *env, const char *config_name, int limit, FCFGConfigArray *array)
 {
     int ret;
     char buff[1024];
@@ -458,10 +458,10 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
 }
 
 int fcfg_admin_config_list (struct fcfg_context *fcfg_context,
-        const char *env, const char *config_name, const int limit, FCFGConfigInfoArray *array)
+        const char *env, const char *config_name, const int limit, FCFGConfigArray *array)
 {
     int ret;
-    memset(array, 0, sizeof(FCFGConfigInfoArray));
+    memset(array, 0, sizeof(FCFGConfigArray));
 
     if ((ret = fcfg_send_admin_join_request(fcfg_context,
             fcfg_context->network_timeout,
@@ -472,7 +472,7 @@ int fcfg_admin_config_list (struct fcfg_context *fcfg_context,
     ret = fcfg_admin_list_config(fcfg_context, env, config_name, limit, array);
     return ret;
 }
-void fcfg_print_config_array (FCFGConfigInfoArray *array)
+void fcfg_print_config_array (FCFGConfigArray *array)
 {
     int i;
 
@@ -486,10 +486,10 @@ void fcfg_print_config_array (FCFGConfigInfoArray *array)
     }
 }
 
-void fcfg_free_config_info_array(FCFGConfigInfoArray *array)
+void fcfg_free_config_info_array(FCFGConfigArray *array)
 {
-    FCFGConfigInfoEntry *current;
-    FCFGConfigInfoEntry *end;
+    FCFGConfigEntry *current;
+    FCFGConfigEntry *end;
 
     if (array->rows == NULL) {
         return;

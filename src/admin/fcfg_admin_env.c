@@ -12,9 +12,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "fastcommon/sockopt.h"
-#include "common/fcfg_proto.h"
+#include "fcfg_proto.h"
 #include "fcfg_admin_func.h"
-#include "fcfg_admin_types.h"
+#include "fcfg_types.h"
 
 void fcfg_set_admin_add_env(char *buff, const char *env,
         int *body_len)
@@ -148,7 +148,7 @@ void fcfg_set_admin_get_env(const char *env, char *buff,
     *body_len = sizeof(FCFGProtoGetEnvReq) + env_len;
 }
 
-static int _extract_to_array(char *buff, int len, FCFGEnvInfoArray *array,
+static int _extract_to_array(char *buff, int len, FCFGEnvArray *array,
         int offset, int count)
 {
     int env_size;
@@ -178,12 +178,12 @@ static int _extract_to_array(char *buff, int len, FCFGEnvInfoArray *array,
     return ret;
 }
 
-static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvInfoArray *array)
+static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array)
 {
-    array->rows = (FCFGEnvInfoEntry *)malloc(sizeof(FCFGEnvInfoEntry));
+    array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry));
     if (array->rows == NULL) {
         logInfo("file: "__FILE__", line: %d, "
-                "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvInfoEntry));
+                "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvEntry));
         fcfg_free_env_info_array(array);
         return ENOMEM;
     }
@@ -191,7 +191,7 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvInfoArray *a
 }
 
 int fcfg_admin_get_env_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvInfoArray *array)
+        FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvArray *array)
 {
     char buff[1024];
     int ret;
@@ -215,7 +215,7 @@ int fcfg_admin_get_env_response(ConnectionInfo *join_conn,
 }
 
 
-int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFGEnvInfoArray *array)
+int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFGEnvArray *array)
 {
     int ret;
     char buff[1024];
@@ -259,10 +259,10 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
 }
 
 int fcfg_admin_env_get (struct fcfg_context *fcfg_context, const char *env,
-        FCFGEnvInfoArray *array)
+        FCFGEnvArray *array)
 {
     int ret;
-    memset(array, 0, sizeof(FCFGEnvInfoArray));
+    memset(array, 0, sizeof(FCFGEnvArray));
 
     if ((ret = fcfg_send_admin_join_request(fcfg_context,
             fcfg_context->network_timeout,
@@ -278,7 +278,7 @@ END:
 }
 
 
-static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGEnvInfoArray *array)
+static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGEnvArray *array)
 {
 
     short count;
@@ -287,18 +287,18 @@ static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGEnvInfoArr
     list_env_resp_header_proto = (FCFGProtoListEnvRespHeader *)buff;
     count = buff2short(list_env_resp_header_proto->count);
 
-    array->rows = (FCFGEnvInfoEntry *)malloc(sizeof(FCFGEnvInfoEntry) * count);
+    array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry) * count);
     if (array->rows == NULL) {
         logInfo("file: "__FILE__", line: %d, "
-                "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvInfoEntry));
+                "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvEntry));
         return ENOMEM;
     }
-    memset(array->rows, 0, sizeof(FCFGEnvInfoEntry) * count);
+    memset(array->rows, 0, sizeof(FCFGEnvEntry) * count);
     return _extract_to_array(buff, len, array, sizeof(FCFGProtoListEnvRespHeader), count);
 }
 
 int fcfg_admin_list_env_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvInfoArray *array)
+        FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvArray *array)
 {
     char buff[2048];
     int ret;
@@ -322,7 +322,7 @@ int fcfg_admin_list_env_response(ConnectionInfo *join_conn,
 }
 
 
-int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvInfoArray *array)
+int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
 {
     int ret;
     char buff[1024];
@@ -370,10 +370,10 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvInfoArray *ar
 }
 
 int fcfg_admin_env_list (struct fcfg_context *fcfg_context,
-        FCFGEnvInfoArray *array)
+        FCFGEnvArray *array)
 {
     int ret;
-    memset(array, 0, sizeof(FCFGEnvInfoArray));
+    memset(array, 0, sizeof(FCFGEnvArray));
 
     if ((ret = fcfg_send_admin_join_request(fcfg_context,
             fcfg_context->network_timeout,
@@ -385,7 +385,7 @@ int fcfg_admin_env_list (struct fcfg_context *fcfg_context,
     return ret;
 }
 
-void fcfg_print_env_array (FCFGEnvInfoArray *array)
+void fcfg_print_env_array (FCFGEnvArray *array)
 {
     int i;
 
@@ -394,10 +394,10 @@ void fcfg_print_env_array (FCFGEnvInfoArray *array)
         fprintf(stderr, "Env %d: %s\n", i, (array->rows+i)->env.str);
     }
 }
-void fcfg_free_env_info_array(FCFGEnvInfoArray *array)
+void fcfg_free_env_info_array(FCFGEnvArray *array)
 {
-    FCFGEnvInfoEntry *current;
-    FCFGEnvInfoEntry *end;
+    FCFGEnvEntry *current;
+    FCFGEnvEntry *end;
 
     if (array->rows == NULL) {
         return;

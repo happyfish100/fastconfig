@@ -4,7 +4,7 @@ TARGET_PATH=/usr/local/bin
 CONFIG_PATH=/usr/local/etc
 
 COMPILE = $(CC) -O0 -Wall -D_FILE_OFFSET_BITS=64 -g
-INC_PATH = -I.. -I/usr/local/include
+INC_PATH = -I../common -I/usr/local/include
 LIB_PATH = -L/usr/local/lib -lfastcommon -lpthread
 
 SHARED_OBJS = ../common/fcfg_proto.lo fcfg_admin_func.lo
@@ -12,7 +12,7 @@ ADMIN_SHARED_OBJS = fcfg_admin_env.lo fcfg_admin_config.lo
 
 ALL_OBJS = $(SHARED_OBJS) $(ADMIN_SHARED_OBJS)
 
-ALL_HEADERS = fcfg_admin.h fcfg_admin_types.h
+ALL_HEADERS = fcfg_admin.h ../common/fcfg_types_admin.h
 SHARED_LIBS = libfcfgadmin.so
 ALL_PRGS =
 ALL_LIBS = $(SHARED_LIBS)
@@ -28,6 +28,7 @@ install:
 	mkdir -p $(DESTDIR)/usr/local/lib
 	mkdir -p $(DESTDIR)/usr/lib
 	install -m 755 $(SHARED_LIBS) $(DESTDIR)/usr/local/lib
+	install -m 755 $(SHARED_LIBS) $(DESTDIR)/usr/lib
 	cp -f $(ALL_HEADERS) /usr/local/include
 clean:
 	rm -f $(ALL_OBJS) $(ALL_PRGS) $(ALL_LIBS)

@@ -28,11 +28,11 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
 int fcfg_do_conn_config_server (struct fcfg_context *fcfg_context);
 void fcfg_disconn_config_server (ConnectionInfo *conn);
 int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
-        FCFGEnvInfoEntry *rows, int *env_size);
+        FCFGEnvEntry *rows, int *env_size);
 int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
-        FCFGConfigInfoEntry *rows, int *config_len);
-void fcfg_admin_print_env_array (FCFGEnvInfoArray *array);
-void fcfg_admin_print_config_array (FCFGConfigInfoArray *array);
+        FCFGConfigEntry *rows, int *config_len);
+void fcfg_admin_print_env_array (FCFGEnvArray *array);
+void fcfg_admin_print_config_array (FCFGConfigArray *array);
 #define FCFG_ADMIN_LIST_REQUEST_COUNT   20
 
 #ifdef __cplusplus

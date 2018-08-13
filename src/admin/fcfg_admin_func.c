@@ -1,5 +1,5 @@
-#include "common/fcfg_proto.h"
-#include "fcfg_admin_types.h"
+#include "fcfg_proto.h"
+#include "fcfg_types.h"
 #include "fcfg_admin_func.h"
 #include "fastcommon/sockopt.h"
 #include "fcfg_admin.h"
@@ -125,6 +125,7 @@ int fcfg_admin_check_response(ConnectionInfo *join_conn,
         if (resp_info->body_len) {
             tcprecvdata_nb_ex(join_conn->sock, resp_info->error.message,
                     resp_info->body_len, network_timeout, NULL);
+            resp_info->error.message[resp_info->body_len] = '\0';
         } else {
             resp_info->error.message[0] = '\0';
         }
@@ -208,7 +209,7 @@ void fcfg_disconn_config_server (ConnectionInfo *conn)
     }
 }
 int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
-        FCFGEnvInfoEntry *rows, int *env_size)
+        FCFGEnvEntry *rows, int *env_size)
 {
     int size;
     rows->env.len = get_env_resp->env_len;
@@ -230,7 +231,7 @@ int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
 }
 
 int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
-        FCFGConfigInfoEntry *rows, int *config_len)
+        FCFGConfigEntry *rows, int *config_len)
 {
     int size;
     rows->status = get_config_resp->status;
@@ -259,7 +260,7 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
     return 0;
 }
 
-void fcfg_admin_print_env_array (FCFGEnvInfoArray *array)
+void fcfg_admin_print_env_array (FCFGEnvArray *array)
 {
     int i;
 
@@ -269,7 +270,7 @@ void fcfg_admin_print_env_array (FCFGEnvInfoArray *array)
     }
 }
 
-void fcfg_admin_print_config_array (FCFGConfigInfoArray *array)
+void fcfg_admin_print_config_array (FCFGConfigArray *array)
 {
     int i;
 

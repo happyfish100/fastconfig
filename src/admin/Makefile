@@ -8,10 +8,7 @@ INC_PATH = -I.. -I/usr/local/include
 LIB_PATH = -L/usr/local/lib -lfastcommon -lpthread
 
 SHARED_OBJS = ../common/fcfg_proto.lo fcfg_admin_func.lo
-ADMIN_SHARED_OBJS = fcfg_admin_set_config.lo fcfg_admin_get_config.lo \
-                    fcfg_admin_del_config.lo fcfg_admin_list_config.lo \
-                    fcfg_admin_add_env.lo fcfg_admin_del_env.lo \
-                    fcfg_admin_get_env.lo fcfg_admin_list_env.lo
+ADMIN_SHARED_OBJS = fcfg_admin_env.lo fcfg_admin_config.lo
 
 ALL_OBJS = $(SHARED_OBJS) $(ADMIN_SHARED_OBJS)
 

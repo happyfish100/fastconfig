@@ -1,10 +1,10 @@
 #include<stdio.h>
 #include "fcfg_admin.h"
 #include "fastcommon/logger.h"
-#include "fcfg_func.h"
 
 static bool show_usage = false;
 char *config_file = NULL;
+char *config_name = NULL;
 char *env = NULL;
 static void usage(char *program)
 {
@@ -12,6 +12,7 @@ static void usage(char *program)
             "\t -h help\n"
             "\t -c <config-filename>\n"
             "\t -e <env>\n"
+            "\t -n <config-name>\n"
             "\n", program);
 }
 static void parse_args(int argc, char **argv)
@@ -19,11 +20,14 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:n::")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
                 config_file = optarg;
+                break;
+            case 'n':
+                config_name = optarg;
                 break;
             case 'e':
                 env = optarg;
@@ -36,7 +40,8 @@ static void parse_args(int argc, char **argv)
     }
     if (found == 0 ||
         config_file == NULL ||
-        env == NULL) {
+        env == NULL ||
+        config_name == NULL) {
         show_usage = true;
     }
 }
@@ -45,9 +50,9 @@ int main (int argc, char **argv)
 {
     int ret;
     struct fcfg_context fcfg_context;
-    FCFGEnvArray array;
-    memset(&array, 0, sizeof(FCFGEnvArray));
-    if (argc < 5) {
+    FCFGConfigInfoArray array;
+    memset(&array, 0, sizeof(FCFGEnvInfoArray));
+    if (argc < 7) {
         usage(argv[0]);
         return 0;
     }
@@ -62,13 +67,14 @@ int main (int argc, char **argv)
     if (ret) {
         goto END;
     }
-    ret = fcfg_admin_env_get(&fcfg_context, env, &array);
+    ret = fcfg_admin_config_get(&fcfg_context, env, config_name, &array);
     if (ret == 0) {
-        fcfg_print_env_array(&array);
+        fcfg_print_config_array(&array);
     }
+
 END:
     log_destroy();
-    fcfg_free_env_array(&array);
+    fcfg_free_config_info_array(&array);
     fcfg_admin_destroy(&fcfg_context);
     return ret;
 }

@@ -6,7 +6,6 @@ LIB_PATH = -L/usr/local/lib -lfastcommon -lfcfgadmin
 TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 
-ALL_OBJS = fcfg_func.o
 
 ALL_PRGS = fcfg_set_config fcfg_del_config fcfg_get_config fcfg_list_config \
            fcfg_add_env fcfg_del_env fcfg_get_env fcfg_list_env

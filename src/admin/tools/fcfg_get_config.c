@@ -20,7 +20,7 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:n::")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:n:")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':

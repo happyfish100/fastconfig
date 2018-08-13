@@ -59,7 +59,7 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -67,11 +67,11 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "set config fail.err info: %s",
                 __LINE__, resp_info.error.message);
     } else {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "set config success !", __LINE__);
     }
 
@@ -130,7 +130,7 @@ int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s\n",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -138,11 +138,11 @@ int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "del config fail.err info: %s\n",
                 __LINE__, resp_info.error.message);
     } else {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "del config success !", __LINE__);
     }
 
@@ -228,15 +228,15 @@ int fcfg_admin_get_config_response(ConnectionInfo *join_conn,
         return -1;
     }
     if (resp_info->body_len > sizeof(buff)) {
-        logInfo("file: "__FILE__", line: %d"
-                "body_len is too long %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "body_len is too long %d ", __LINE__, resp_info->body_len);
         return -1;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
-                "tcprecvdata_nb_ex fail %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
         return -1;
     }
 
@@ -262,7 +262,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s\n",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -270,7 +270,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_GET_CONFIG_RESP);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "get config fail.err info: %s\n",
                 __LINE__, resp_info.error.message);
     } else {
@@ -279,7 +279,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
     }
 
     if (ret == 0) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "get config success !", __LINE__);
     }
     return ret;

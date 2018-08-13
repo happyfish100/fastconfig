@@ -44,7 +44,7 @@ int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -52,11 +52,11 @@ int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "add env fail.err info: %s",
                 __LINE__, resp_info.error.message);
     } else {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "add env success !", __LINE__);
     }
 
@@ -105,7 +105,7 @@ int fcfg_admin_del_env (struct fcfg_context *fcfg_context, const char *env)
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -113,11 +113,11 @@ int fcfg_admin_del_env (struct fcfg_context *fcfg_context, const char *env)
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "del env fail.err info: %s",
                 __LINE__, resp_info.error.message);
     } else {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "del env success !", __LINE__);
     }
 
@@ -199,15 +199,15 @@ int fcfg_admin_get_env_response(ConnectionInfo *join_conn,
         return -1;
     }
     if (resp_info->body_len > sizeof(buff)) {
-        logInfo("file: "__FILE__", line: %d"
-                "body_len is too long %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "body_len is too long %d ", __LINE__, resp_info->body_len);
         return -1;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
-                "tcprecvdata_nb_ex fail %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
         return -1;
     }
 
@@ -233,7 +233,7 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -242,7 +242,7 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
             &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_GET_ENV_RESP);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "get env fail.err info: %s",
                 __LINE__,
                 resp_info.error.message);
@@ -252,7 +252,7 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
     }
 
     if (ret == 0) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "get env success !", __LINE__);
     }
     return ret;
@@ -306,15 +306,15 @@ int fcfg_admin_list_env_response(ConnectionInfo *join_conn,
         return 0;
     }
     if (resp_info->body_len > sizeof(buff)) {
-        logInfo("file: "__FILE__", line: %d"
-                "body_len is too long %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "body_len is too long %d ", __LINE__, resp_info->body_len);
         return -1;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
-                "tcprecvdata_nb_ex fail %d", __LINE__, resp_info->body_len);
+        logInfo("file: "__FILE__", line: %d "
+                "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
         return -1;
     }
 
@@ -340,7 +340,7 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d"
+        logInfo("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__,
                 ret, strerror(ret));

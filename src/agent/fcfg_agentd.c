@@ -24,7 +24,6 @@
 #include "fcfg_agent_func.h"
 #include "fcfg_agent_global.h"
 
-static bool show_usage = false;
 static bool daemon_mode = true;
 static bool bTerminateFlag = false;
 FCFGAgentGlobalVars g_agent_global_vars;
@@ -36,28 +35,6 @@ static void usage(char *program)
             "\t -h help\n"
             "\t -c <config-filename>\n"
             "\n", program);
-}
-
-static void parse_args(int argc, char **argv)
-{
-    int ch;
-    int found = 0;
-
-    while ((ch = getopt(argc, argv, "hc:")) != -1) {
-        found = 1;
-        switch (ch) {
-            case 'c':
-                g_agent_global_vars.config_file = optarg;
-                break;
-            case 'h':
-            default:
-                show_usage = true;
-                break;
-        }
-    }
-    if (found == 0) {
-        show_usage = true;
-    }
 }
 
 int main (int argc, char **argv)
@@ -76,11 +53,8 @@ int main (int argc, char **argv)
     }
     memset(&g_agent_global_vars, 0, sizeof(FCFGAgentGlobalVars));
     g_agent_global_vars.continue_flag = true;
-    parse_args(argc, argv);
-    if (show_usage) {
-        usage(argv[0]);
-        return 0;
-    }
+    g_agent_global_vars.config_file = argv[1];
+
     log_init2();
     log_set_use_file_write_lock(true);
 

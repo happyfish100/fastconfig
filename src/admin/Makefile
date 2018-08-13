@@ -12,7 +12,7 @@ ADMIN_SHARED_OBJS = fcfg_admin_env.lo fcfg_admin_config.lo
 
 ALL_OBJS = $(SHARED_OBJS) $(ADMIN_SHARED_OBJS)
 
-ALL_HEADERS = fcfg_admin.h
+ALL_HEADERS = fcfg_admin.h fcfg_admin_types.h
 SHARED_LIBS = libfcfgadmin.so
 ALL_PRGS =
 ALL_LIBS = $(SHARED_LIBS)

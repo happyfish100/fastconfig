@@ -95,6 +95,12 @@ bool fcfg_server_env_exists(const char *env)
     FCFGEnvEntry targert;
     FCFGEnvEntry *found;
 
+    if (g_server_global_vars.env_array == NULL ||
+            g_server_global_vars.env_array->count == 0)
+    {
+        return false;
+    }
+
     targert.env.str = (char *)env;
     found = (FCFGEnvEntry *)bsearch(&targert, g_server_global_vars.env_array->rows,
             g_server_global_vars.env_array->count, sizeof(FCFGEnvEntry),

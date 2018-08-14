@@ -2,7 +2,7 @@
 #define _FCFG_ADMIN_H
 
 #include "fastcommon/multi_socket_client.h"
-#include "fcfg_types_admin.h"
+#include "fcfg/fcfg_types_admin.h"
 
 #ifdef __cplusplus
 extern "C" {

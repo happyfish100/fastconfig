@@ -1,5 +1,5 @@
 #include<stdio.h>
-#include "fcfg_admin.h"
+#include "fcfg/fcfg_admin.h"
 #include "fastcommon/logger.h"
 
 static bool show_usage = false;

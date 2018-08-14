@@ -337,19 +337,20 @@ static int fcfg_server_dao_store_rows(MYSQL_STMT *stmt, FCFGConfigArray *array)
     FCFGConfigEntry *current;
     FCFGConfigEntry *end;
 
+    buffer.name_len = buffer.value_len = 0;
     memset(result_binds, 0, sizeof(result_binds));
     result_binds[0].buffer_type = MYSQL_TYPE_STRING;
     result_binds[0].buffer = buffer.name;
     result_binds[0].buffer_length = FCFG_CONFIG_NAME_SIZE;
-    result_binds[0].is_null = &is_null[0];
     result_binds[0].length = &buffer.name_len;
+    result_binds[0].is_null = &is_null[0];
     result_binds[0].error = &error[0];
 
     result_binds[1].buffer_type = MYSQL_TYPE_STRING;
     result_binds[1].buffer = buffer.value;
     result_binds[1].buffer_length = FCFG_CONFIG_VALUE_SIZE;
-    result_binds[1].is_null = &is_null[1];
     result_binds[1].length = &buffer.value_len;
+    result_binds[1].is_null = &is_null[1];
     result_binds[1].error = &error[1];
 
     result_binds[2].buffer_type = MYSQL_TYPE_LONGLONG;

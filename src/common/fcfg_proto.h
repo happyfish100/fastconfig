@@ -171,24 +171,14 @@ int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
 void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
         FCFGResponseInfo *resp_info);
 
-void fcfg_free_config_array(FCFGConfigArray *array);
-void fcfg_free_env_array(FCFGEnvArray *array);
-
-void _get_conn_config (ConnectionInfo *conn, const char *config_server);
-
 static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
-        const int expect_body_length, const char *filename, const int line)
+        const int expect_body_length)
 {
     if (request->body_len != expect_body_length) {
         response->error.length = sprintf(response->error.message,
                 "request body length: %d != %d",
                 request->body_len, expect_body_length);
-
-        logError("file: %s, line: %d, "
-                "client ip: %s, cmd: %d, %s",
-                filename, line, task->client_ip, request->cmd,
-                response->error.message);
         return EINVAL;
     }
 
@@ -197,17 +187,12 @@ static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
 
 static inline int fcfg_proto_check_min_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
-        const int min_body_length, const char *filename, const int line)
+        const int min_body_length)
 {
     if (request->body_len < min_body_length) {
         response->error.length = sprintf(response->error.message,
                 "request body length: %d < %d",
                 request->body_len, min_body_length);
-
-        logError("file: %s, line: %d, "
-                "client ip: %s, cmd: %d, %s",
-                filename, line, task->client_ip, request->cmd,
-                response->error.message);
         return EINVAL;
     }
 
@@ -216,17 +201,12 @@ static inline int fcfg_proto_check_min_body_length(struct fast_task_info *task,
 
 static inline int fcfg_proto_check_max_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
-        const int max_body_length, const char *filename, const int line)
+        const int max_body_length)
 {
     if (request->body_len > max_body_length) {
         response->error.length = sprintf(response->error.message,
                 "request body length: %d > %d",
                 request->body_len, max_body_length);
-
-        logError("file: %s, line: %d, "
-                "client ip: %s, cmd: %d, %s",
-                filename, line, task->client_ip, request->cmd,
-                response->error.message);
         return EINVAL;
     }
 
@@ -235,31 +215,30 @@ static inline int fcfg_proto_check_max_body_length(struct fast_task_info *task,
 
 static inline int fcfg_proto_check_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,
-        const int min_body_length, const int max_body_length,
-        const char *filename, const int line)
+        const int min_body_length, const int max_body_length)
 {
     int result;
     if ((result=fcfg_proto_check_min_body_length(task, request, response,
-            min_body_length, filename, line)) != 0)
+            min_body_length)) != 0)
     {
         return result;
     }
     return fcfg_proto_check_max_body_length(task, request, response,
-            max_body_length, filename, line);
+            max_body_length);
 }
 
 #define FCFG_PROTO_EXPECT_BODY_LEN(task, request, response, expect_length) \
-    fcfg_proto_expect_body_length(task, request, response, expect_length, __FILE__, __LINE__)
+    fcfg_proto_expect_body_length(task, request, response, expect_length)
 
 #define FCFG_PROTO_CHECK_MIN_BODY_LEN(task, request, response, min_length) \
-    fcfg_proto_check_min_body_length(task, request, response, min_length, __FILE__, __LINE__)
+    fcfg_proto_check_min_body_length(task, request, response, min_length)
 
 #define FCFG_PROTO_CHECK_MAX_BODY_LEN(task, request, response, max_length) \
-    fcfg_proto_check_max_body_length(task, request, response, max_length, __FILE__, __LINE__)
+    fcfg_proto_check_max_body_length(task, request, response, max_length)
 
 #define FCFG_PROTO_CHECK_BODY_LEN(task, request, response, min_length, max_length) \
     fcfg_proto_check_body_length(task, request, response, \
-            min_length, max_length, __FILE__, __LINE__)
+            min_length, max_length)
 
 #ifdef __cplusplus
 }

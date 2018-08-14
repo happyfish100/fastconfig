@@ -10,9 +10,6 @@
 #include "fastcommon/fc_list.h"
 #include "fcfg_server_dao.h"
 
-#define FCFG_SERVER_DEFAULT_INNER_PORT  20000
-#define FCFG_SERVER_DEFAULT_OUTER_PORT  20000
-
 #define FCFG_SERVER_DEFAULT_RELOAD_INTERVAL       500
 #define FCFG_SERVER_DEFAULT_CHECK_ALIVE_INTERVAL  300
 

@@ -17,6 +17,7 @@ typedef struct {
     int status;
     int body_len;    //response body length
     bool response_done;
+    bool log_error;
     unsigned char cmd;   //response command
 } FCFGResponseInfo;
 

@@ -219,28 +219,71 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *ar
     return _extract_to_array(buff, len, array, 0, 1);
 }
 
-int fcfg_admin_get_config_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGConfigArray *array)
+static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigArray *array,
+        int *resp_count)
 {
-    char buff[FCFG_CONFIG_VALUE_SIZE + 1024];
+    int size;
+    short count;
+    FCFGConfigEntry *tmp;
+    FCFGProtoListConfigRespHeader *list_config_resp_header_proto =
+        (FCFGProtoListConfigRespHeader *)buff;
+    count = buff2short(list_config_resp_header_proto->count);
+    *resp_count = count;
+    if (count <= 0) {
+        return 0;
+    }
+
+    size = sizeof(FCFGConfigEntry) * (count + array->count);
+    tmp = (FCFGConfigEntry *)malloc(size);
+    if (tmp == NULL) {
+        logInfo("file: "__FILE__", line: %d, "
+                "malloc %d bytes fail", __LINE__, size);
+        return ENOMEM;
+    }
+    memset(tmp, 0, size);
+    if (array->count && array->rows) {
+        memcpy(tmp, array->rows, array->count * sizeof(FCFGConfigEntry));
+        free(array->rows);
+        array->rows = NULL;
+    }
+    array->rows = tmp;
+
+    return _extract_to_array(buff, len, array,
+            sizeof(FCFGProtoListConfigRespHeader), count);
+}
+
+
+int fcfg_admin_config_response(ConnectionInfo *join_conn,
+        FCFGResponseInfo *resp_info, int network_timeout,
+        FCFGConfigArray *array, int *resp_count, int is_list)
+{
+    char *buff;
     int ret;
     if (resp_info->body_len == 0) {
         return -1;
     }
-    if (resp_info->body_len > sizeof(buff)) {
+    buff = (char *)malloc(resp_info->body_len);
+    if (buff == NULL) {
         logInfo("file: "__FILE__", line: %d "
-                "body_len is too long %d ", __LINE__, resp_info->body_len);
-        return -1;
+                "malloc fail %d ", __LINE__, resp_info->body_len);
+        return ENOMEM;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
         logInfo("file: "__FILE__", line: %d "
                 "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
+        free(buff);
         return -1;
     }
 
-    return fcfg_admin_extract_to_array(buff, resp_info->body_len, array);
+    if (is_list) {
+        ret = fcfg_admin_extract_list_to_array(buff, resp_info->body_len, array, resp_count);
+    } else {
+        ret = fcfg_admin_extract_to_array(buff, resp_info->body_len, array);
+    }
+    free(buff);
+    return ret;
 }
 
 int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
@@ -274,8 +317,8 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
                 "get config fail.err info: %s\n",
                 __LINE__, resp_info.error.message);
     } else {
-        ret = fcfg_admin_get_config_response(join_conn, &resp_info,
-                fcfg_context->network_timeout, array);
+        ret = fcfg_admin_config_response(join_conn, &resp_info,
+                fcfg_context->network_timeout, array, NULL, 0);
     }
 
     if (ret == 0) {
@@ -328,64 +371,6 @@ void fcfg_set_admin_list_config(char *buff, const char *env,
     *body_len = env_len + name_len + sizeof(FCFGProtoListConfigReq);
 }
 
-static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigArray *array,
-        int *resp_count)
-{
-    int size;
-    short count;
-    FCFGConfigEntry *tmp;
-    FCFGProtoListConfigRespHeader *list_config_resp_header_proto =
-        (FCFGProtoListConfigRespHeader *)buff;
-    count = buff2short(list_config_resp_header_proto->count);
-    *resp_count = count;
-    if (count <= 0) {
-        return 0;
-    }
-
-    size = sizeof(FCFGConfigEntry) * (count + array->count);
-    tmp = (FCFGConfigEntry *)malloc(size);
-    if (tmp == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
-                "malloc %d bytes fail", __LINE__, size);
-        return ENOMEM;
-    }
-    memset(tmp, 0, size);
-    if (array->count && array->rows) {
-        memcpy(tmp, array->rows, array->count * sizeof(FCFGConfigEntry));
-        free(array->rows);
-        array->rows = NULL;
-    }
-    array->rows = tmp;
-
-    return _extract_to_array(buff, len, array,
-            sizeof(FCFGProtoListConfigRespHeader), count);
-}
-
-int fcfg_admin_list_config_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout,
-        FCFGConfigArray *array, int *resp_count)
-{
-    char buff[FCFG_CONFIG_VALUE_SIZE + 1024];
-    int ret;
-    if (resp_info->body_len == 0) {
-        return -1;
-    }
-    if (resp_info->body_len > sizeof(buff)) {
-        logInfo("file: "__FILE__", line: %d "
-                "body_len is too long %d ", __LINE__, resp_info->body_len);
-        return -1;
-    }
-    ret = tcprecvdata_nb_ex(join_conn->sock, buff,
-            resp_info->body_len, network_timeout, NULL);
-    if (ret) {
-        logInfo("file: "__FILE__", line: %d "
-                "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
-        return -1;
-    }
-
-    return fcfg_admin_extract_list_to_array(buff, resp_info->body_len, array, resp_count);
-}
-
 int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name, int limit, FCFGConfigArray *array)
 {
@@ -432,11 +417,11 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
                     __LINE__, resp_info.body_len, resp_info.error.message);
             break;
         } else {
-            ret = fcfg_admin_list_config_response(join_conn, &resp_info,
-                    fcfg_context->network_timeout, array, &resp_count);
+            ret = fcfg_admin_config_response(join_conn, &resp_info,
+                    fcfg_context->network_timeout, array, &resp_count, 1);
             if (ret) {
                 logInfo("file: "__FILE__", line: %d "
-                        "fcfg_admin_list_config_response fail", __LINE__);
+                        "fcfg_admin_config_response fail", __LINE__);
                 break;
             }
             if (resp_count == 0) {

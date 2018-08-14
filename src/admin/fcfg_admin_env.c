@@ -170,7 +170,7 @@ static int _extract_to_array(char *buff, int len, FCFGEnvArray *array,
     }
     if (ret || (size != len)) {
         logInfo("file: "__FILE__", line: %d, "
-                "fcfg_admin_extract_to_array fail ret:%d, count:%d, size: %d, len: %d\n",
+                "_extract_to_array fail ret:%d, count:%d, size: %d, len: %d\n",
                 __LINE__, ret, count, size, len);
         return -1;
     }
@@ -190,30 +190,57 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array
     return _extract_to_array(buff, len, array, 0, 1);
 }
 
-int fcfg_admin_get_env_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvArray *array)
+static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGEnvArray *array)
 {
-    char buff[1024];
+    short count;
+    FCFGProtoListEnvRespHeader *list_env_resp_header_proto;
+
+    list_env_resp_header_proto = (FCFGProtoListEnvRespHeader *)buff;
+    count = buff2short(list_env_resp_header_proto->count);
+
+    array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry) * count);
+    if (array->rows == NULL) {
+        logInfo("file: "__FILE__", line: %d, "
+                "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvEntry));
+        return ENOMEM;
+    }
+    memset(array->rows, 0, sizeof(FCFGEnvEntry) * count);
+    return _extract_to_array(buff, len, array, sizeof(FCFGProtoListEnvRespHeader), count);
+}
+
+int fcfg_admin_env_response(ConnectionInfo *join_conn,
+        FCFGResponseInfo *resp_info, int network_timeout,
+        FCFGEnvArray *array, int is_list)
+{
+    char *buff;
     int ret;
     if (resp_info->body_len == 0) {
         return -1;
     }
-    if (resp_info->body_len > sizeof(buff)) {
+
+    buff = (char *)malloc(resp_info->body_len);
+    if (buff == NULL) {
         logInfo("file: "__FILE__", line: %d "
-                "body_len is too long %d ", __LINE__, resp_info->body_len);
-        return -1;
+                "malloc fail %d ", __LINE__, resp_info->body_len);
+        return ENOMEM;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
         logInfo("file: "__FILE__", line: %d "
                 "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
+        free(buff);
         return -1;
     }
 
-    return fcfg_admin_extract_to_array(buff, resp_info->body_len, array);
+    if (is_list) {
+        ret = fcfg_admin_extract_list_to_array(buff, resp_info->body_len, array);
+    } else {
+        ret = fcfg_admin_extract_to_array(buff, resp_info->body_len, array);
+    }
+    free(buff);
+    return ret;
 }
-
 
 int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFGEnvArray *array)
 {
@@ -247,8 +274,8 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
                 __LINE__,
                 resp_info.error.message);
     } else {
-        ret = fcfg_admin_get_env_response(join_conn, &resp_info,
-                fcfg_context->network_timeout, array);
+        ret = fcfg_admin_env_response(join_conn, &resp_info,
+                fcfg_context->network_timeout, array, 0);
     }
 
     if (ret == 0) {
@@ -276,51 +303,6 @@ END:
     log_destroy();
     return ret;
 }
-
-
-static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGEnvArray *array)
-{
-
-    short count;
-    FCFGProtoListEnvRespHeader *list_env_resp_header_proto;
-
-    list_env_resp_header_proto = (FCFGProtoListEnvRespHeader *)buff;
-    count = buff2short(list_env_resp_header_proto->count);
-
-    array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry) * count);
-    if (array->rows == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
-                "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvEntry));
-        return ENOMEM;
-    }
-    memset(array->rows, 0, sizeof(FCFGEnvEntry) * count);
-    return _extract_to_array(buff, len, array, sizeof(FCFGProtoListEnvRespHeader), count);
-}
-
-int fcfg_admin_list_env_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, FCFGEnvArray *array)
-{
-    char buff[2048];
-    int ret;
-    if (resp_info->body_len == 0) {
-        return 0;
-    }
-    if (resp_info->body_len > sizeof(buff)) {
-        logInfo("file: "__FILE__", line: %d "
-                "body_len is too long %d ", __LINE__, resp_info->body_len);
-        return -1;
-    }
-    ret = tcprecvdata_nb_ex(join_conn->sock, buff,
-            resp_info->body_len, network_timeout, NULL);
-    if (ret) {
-        logInfo("file: "__FILE__", line: %d "
-                "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
-        return -1;
-    }
-
-    return fcfg_admin_extract_list_to_array(buff, resp_info->body_len, array);
-}
-
 
 int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
 {
@@ -354,11 +336,11 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
                 __LINE__,
                 resp_info.error.message);
     } else {
-        ret = fcfg_admin_list_env_response(join_conn, &resp_info,
-                fcfg_context->network_timeout, array);
+        ret = fcfg_admin_env_response(join_conn, &resp_info,
+                fcfg_context->network_timeout, array, 1);
         if (ret) {
             logInfo("file: "__FILE__", line: %d, "
-                    "fcfg_admin_list_env_response fail", __LINE__);
+                    "fcfg_admin_env_response fail", __LINE__);
         }
     }
 

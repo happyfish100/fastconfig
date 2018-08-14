@@ -66,6 +66,9 @@ int main (int argc, char **argv)
         goto END;
     }
     ret = fcfg_admin_config_del(&fcfg_context, env, config_name);
+    if (ret == 0) {
+        fprintf(stderr, "delete config success\n");
+    }
 
 END:
     log_destroy();

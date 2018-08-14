@@ -44,7 +44,7 @@ int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -52,12 +52,9 @@ int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "add env fail.err info: %s",
                 __LINE__, resp_info.error.message);
-    } else {
-        logInfo("file: "__FILE__", line: %d "
-                "add env success !", __LINE__);
     }
 
     return ret;
@@ -66,12 +63,6 @@ int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
 int fcfg_admin_env_add (struct fcfg_context *fcfg_context, const char *env)
 {
     int ret;
-
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        return ret;
-    }
 
     ret = fcfg_admin_add_env(fcfg_context, env);
     return ret;
@@ -105,7 +96,7 @@ int fcfg_admin_del_env (struct fcfg_context *fcfg_context, const char *env)
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -113,12 +104,9 @@ int fcfg_admin_del_env (struct fcfg_context *fcfg_context, const char *env)
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "del env fail.err info: %s",
                 __LINE__, resp_info.error.message);
-    } else {
-        logInfo("file: "__FILE__", line: %d "
-                "del env success !", __LINE__);
     }
 
     return ret;
@@ -128,11 +116,6 @@ int fcfg_admin_env_del (struct fcfg_context *fcfg_context, const char *env)
 {
     int ret;
 
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        return ret;
-    }
 
     ret = fcfg_admin_del_env(fcfg_context, env);
     return ret;
@@ -169,7 +152,7 @@ static int _extract_to_array(char *buff, int len, FCFGEnvArray *array,
         array->count ++;
     }
     if (ret || (size != len)) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "_extract_to_array fail ret:%d, count:%d, size: %d, len: %d\n",
                 __LINE__, ret, count, size, len);
         return -1;
@@ -182,7 +165,7 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGEnvArray *array
 {
     array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry));
     if (array->rows == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvEntry));
         fcfg_free_env_info_array(array);
         return ENOMEM;
@@ -200,7 +183,7 @@ static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGEnvArray *
 
     array->rows = (FCFGEnvEntry *)malloc(sizeof(FCFGEnvEntry) * count);
     if (array->rows == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "malloc %ld bytes fail", __LINE__, sizeof(FCFGEnvEntry));
         return ENOMEM;
     }
@@ -220,14 +203,14 @@ int fcfg_admin_env_response(ConnectionInfo *join_conn,
 
     buff = (char *)malloc(resp_info->body_len);
     if (buff == NULL) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "malloc fail %d ", __LINE__, resp_info->body_len);
         return ENOMEM;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
         free(buff);
         return -1;
@@ -260,7 +243,7 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -269,7 +252,7 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
             &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_GET_ENV_RESP);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "get env fail.err info: %s",
                 __LINE__,
                 resp_info.error.message);
@@ -278,10 +261,6 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
                 fcfg_context->network_timeout, array, 0);
     }
 
-    if (ret == 0) {
-        logInfo("file: "__FILE__", line: %d "
-                "get env success !", __LINE__);
-    }
     return ret;
 }
 
@@ -291,15 +270,8 @@ int fcfg_admin_env_get (struct fcfg_context *fcfg_context, const char *env,
     int ret;
     memset(array, 0, sizeof(FCFGEnvArray));
 
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        goto END;
-    }
-
     ret = fcfg_admin_get_env(fcfg_context, env, array);
 
-END:
     log_destroy();
     return ret;
 }
@@ -322,7 +294,7 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__,
                 ret, strerror(ret));
@@ -331,7 +303,7 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
     ret = fcfg_admin_check_response(join_conn,
             &resp_info, fcfg_context->network_timeout, FCFG_PROTO_LIST_ENV_RESP);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "list env fail.err info: %s",
                 __LINE__,
                 resp_info.error.message);
@@ -339,15 +311,11 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
         ret = fcfg_admin_env_response(join_conn, &resp_info,
                 fcfg_context->network_timeout, array, 1);
         if (ret) {
-            logInfo("file: "__FILE__", line: %d, "
+            logError("file: "__FILE__", line: %d, "
                     "fcfg_admin_env_response fail", __LINE__);
         }
     }
 
-    if (ret == 0) {
-        logInfo("file: "__FILE__", line: %d, "
-                "list env success !", __LINE__);
-    }
     return ret;
 }
 
@@ -357,12 +325,6 @@ int fcfg_admin_env_list (struct fcfg_context *fcfg_context,
     int ret;
     memset(array, 0, sizeof(FCFGEnvArray));
 
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        return ret;
-    }
-
     ret = fcfg_admin_list_env(fcfg_context, array);
     return ret;
 }
@@ -371,7 +333,6 @@ void fcfg_print_env_array (FCFGEnvArray *array)
 {
     int i;
 
-    fprintf(stderr,"Env count:%d\n", array->count);
     for (i = 0; i < array->count; i++) {
         fprintf(stderr, "Env %d: %s\n", i, (array->rows+i)->env.str);
     }

@@ -60,6 +60,9 @@ int main (int argc, char **argv)
         goto END;
     }
     ret = fcfg_admin_env_add(&fcfg_context, env);
+    if (ret == 0) {
+        fprintf(stderr, "add env success\n");
+    }
 
 END:
     log_destroy();

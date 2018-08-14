@@ -72,6 +72,9 @@ int main (int argc, char **argv)
         goto END;
     }
     ret = fcfg_admin_config_set(&fcfg_context, env, config_name, config_value);
+    if (ret == 0) {
+        fprintf(stderr, "set config success\n");
+    }
 
 END:
     log_destroy();

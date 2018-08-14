@@ -22,7 +22,6 @@ void fcfg_set_admin_join_req(struct fcfg_context *fcfg_context, char *buff,
     *body_len = sizeof(FCFGProtoAdminJoinReq) + secret_key_len + username_len;
 }
 
-
 int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
         const char *config_filename)
 {
@@ -35,7 +34,7 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
 
     memset(&ini_context, 0, sizeof(IniContext));
     if ((result=iniLoadFromFile(config_filename, &ini_context)) != 0) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "load conf file \"%s\" fail, ret code: %d ",
                 __LINE__, config_filename, result);
         return result;
@@ -44,7 +43,7 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
     server_count = iniGetValues(NULL, "config_server",
                     &ini_context, config_server, FCFG_CONFIG_SERVER_COUNT_MAX);
     if (server_count <= 0) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "get config_server fail %d ", __LINE__, server_count);
         return -1;
     }
@@ -52,13 +51,13 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
     fcfg_context->join_conn = (ConnectionInfo *)malloc(server_count *
             sizeof(ConnectionInfo));
     if (fcfg_context->join_conn == NULL) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "malloc fail", __LINE__);
         return 1;
     }
     for (i = 0; i < server_count; i ++) {
         _get_conn_config(fcfg_context->join_conn + i, config_server[i]);
-        logInfo("file: "__FILE__", line: %d "
+        logDebug("file: "__FILE__", line: %d "
                 "config_server: %s", __LINE__, config_server[i]);
     }
 
@@ -70,7 +69,7 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
 
     pDataPath = iniGetStrValue(NULL, "username", &ini_context);
     if (pDataPath == NULL || *pDataPath == '\0') {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "get username from file:%s", __LINE__, config_filename);
         return ENOENT;
     }
@@ -79,7 +78,7 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
 
     pDataPath = iniGetStrValue(NULL, "secret_key", &ini_context);
     if (pDataPath == NULL || *pDataPath == '\0') {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "get secret_key from file:%s", __LINE__, config_filename);
         return ENOENT;
     }
@@ -99,11 +98,17 @@ int fcfg_admin_init_from_file (struct fcfg_context *fcfg_context,
     fcfg_context->join_index = -1;
     ret = fcfg_admin_load_config(fcfg_context, config_filename);
     if (ret == 0) {
-       ret = fcfg_do_conn_config_server(fcfg_context); 
+        ret = fcfg_do_conn_config_server(fcfg_context); 
+        if (ret == 0) {
+            ret = fcfg_send_admin_join_request(fcfg_context,
+                    fcfg_context->network_timeout,
+                    fcfg_context->connect_timeout);
+        }
     }
 
     return ret;
 }
+
 int fcfg_admin_destroy (struct fcfg_context *fcfg_context)
 {
     if ((fcfg_context->join_index > 0) && fcfg_context->join_conn) {
@@ -152,17 +157,17 @@ int fcfg_send_admin_join_request(struct fcfg_context *fcfg_context, int network_
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             network_timeout, connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
     }
     ret = fcfg_admin_check_response (join_conn, &resp_info, network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "join server fail. %s", __LINE__, resp_info.error.message);
     } else {
-        logInfo("file: "__FILE__", line: %d "
+        logDebug("file: "__FILE__", line: %d "
                 "join server success!", __LINE__);
     }
 
@@ -183,7 +188,7 @@ int fcfg_do_conn_config_server (struct fcfg_context *fcfg_context)
         join_conn = fcfg_context->join_conn + server_index;
         if ((ret = conn_pool_connect_server(join_conn,
                         fcfg_context->connect_timeout)) != 0) {
-            logInfo("file: "__FILE__", line: %d "
+            logError("file: "__FILE__", line: %d "
                     "conn_pool_connect_server fail. server index[%d] %s:%d, ret:%d, %s\n",
                     __LINE__,
                     server_index,
@@ -219,7 +224,7 @@ int fcfg_admin_env_set_entry(FCFGProtoGetEnvResp *get_env_resp,
     size = rows->env.len;
     rows->env.str = (char *)malloc(size + 1);
     if (rows->env.str == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "malloc %d bytes fail", __LINE__, size + 1);
         return ENOMEM;
     }
@@ -244,7 +249,7 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
     size = rows->name.len + rows->value.len;
     rows->name.str = (char *)malloc(size + 2);
     if (rows->name.str == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "malloc %d bytes fail", __LINE__, size + 2);
         return ENOMEM;
     }
@@ -258,28 +263,4 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
     *config_len = sizeof(FCFGProtoGetConfigResp) + size;
 
     return 0;
-}
-
-void fcfg_admin_print_env_array (FCFGEnvArray *array)
-{
-    int i;
-
-    fprintf(stderr,"Env count:%d\n", array->count);
-    for (i = 0; i < array->count; i++) {
-        fprintf(stderr, "Env %d: %s\n", i, (array->rows+i)->env.str);
-    }
-}
-
-void fcfg_admin_print_config_array (FCFGConfigArray *array)
-{
-    int i;
-
-    fprintf(stderr, "Config count:%d\n", array->count);
-    for (i = 0; i < array->count; i++) {
-        fprintf(stderr, "Config %d: version:%"PRId64
-                ", key: %s, value: %s, status:%d\n",
-                i, (array->rows + i)->version,
-                (array->rows + i)->name.str, (array->rows + i)->value.str,
-                (array->rows + i)->status);
-    }
 }

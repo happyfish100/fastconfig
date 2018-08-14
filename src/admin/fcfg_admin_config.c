@@ -59,7 +59,7 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -67,12 +67,9 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "set config fail.err info: %s",
                 __LINE__, resp_info.error.message);
-    } else {
-        logInfo("file: "__FILE__", line: %d "
-                "set config success !", __LINE__);
     }
 
     return ret;
@@ -82,12 +79,6 @@ int fcfg_admin_config_set (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name, const char *config_value)
 {
     int ret;
-
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        return ret;
-    }
 
     ret = fcfg_admin_set_config(fcfg_context, env, config_name, config_value);
 
@@ -130,7 +121,7 @@ int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s\n",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -138,12 +129,9 @@ int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "del config fail.err info: %s\n",
                 __LINE__, resp_info.error.message);
-    } else {
-        logInfo("file: "__FILE__", line: %d "
-                "del config success !", __LINE__);
     }
 
     return ret;
@@ -153,12 +141,6 @@ int fcfg_admin_config_del (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name)
 {
     int ret;
-
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        return ret;
-    }
 
     ret = fcfg_admin_del_config(fcfg_context, env, config_name);
     return ret;
@@ -199,7 +181,7 @@ static int _extract_to_array (char *buff, int len, FCFGConfigArray *array,
         array->count ++;
     }
     if (ret || (size != len)) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "fcfg_admin_config_set_entry fail"
                 " ret:%d, count:%d, size:%d, len:%d ", __LINE__, ret, count, size, len);
         return -1;
@@ -211,7 +193,7 @@ static int fcfg_admin_extract_to_array (char *buff, int len, FCFGConfigArray *ar
 {
     array->rows = (FCFGConfigEntry *)malloc(sizeof(FCFGConfigEntry));
     if (array->rows == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "malloc %ld bytes fail", __LINE__, sizeof(FCFGConfigEntry));
         return ENOMEM;
     }
@@ -236,7 +218,7 @@ static int fcfg_admin_extract_list_to_array (char *buff, int len, FCFGConfigArra
     size = sizeof(FCFGConfigEntry) * (count + array->count);
     tmp = (FCFGConfigEntry *)malloc(size);
     if (tmp == NULL) {
-        logInfo("file: "__FILE__", line: %d, "
+        logError("file: "__FILE__", line: %d, "
                 "malloc %d bytes fail", __LINE__, size);
         return ENOMEM;
     }
@@ -264,14 +246,14 @@ int fcfg_admin_config_response(ConnectionInfo *join_conn,
     }
     buff = (char *)malloc(resp_info->body_len);
     if (buff == NULL) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "malloc fail %d ", __LINE__, resp_info->body_len);
         return ENOMEM;
     }
     ret = tcprecvdata_nb_ex(join_conn->sock, buff,
             resp_info->body_len, network_timeout, NULL);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "tcprecvdata_nb_ex fail %d ", __LINE__, resp_info->body_len);
         free(buff);
         return -1;
@@ -305,7 +287,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
             fcfg_context->network_timeout, fcfg_context->connect_timeout);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s\n",
                 __LINE__, ret, strerror(ret));
         return ret;
@@ -313,7 +295,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
     ret = fcfg_admin_check_response(join_conn, &resp_info,
             fcfg_context->network_timeout, FCFG_PROTO_GET_CONFIG_RESP);
     if (ret) {
-        logInfo("file: "__FILE__", line: %d "
+        logError("file: "__FILE__", line: %d "
                 "get config fail.err info: %s\n",
                 __LINE__, resp_info.error.message);
     } else {
@@ -321,10 +303,6 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
                 fcfg_context->network_timeout, array, NULL, 0);
     }
 
-    if (ret == 0) {
-        logInfo("file: "__FILE__", line: %d "
-                "get config success !", __LINE__);
-    }
     return ret;
 }
 
@@ -333,12 +311,6 @@ int fcfg_admin_config_get (struct fcfg_context *fcfg_context,
 {
     int ret;
     memset(array, 0, sizeof(FCFGConfigArray));
-
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        return ret;
-    }
 
     ret = fcfg_admin_get_config(fcfg_context, env, config_name, array);
     return ret;
@@ -403,7 +375,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
         ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
                 fcfg_context->network_timeout, fcfg_context->connect_timeout);
         if (ret) {
-            logInfo("file: "__FILE__", line: %d "
+            logError("file: "__FILE__", line: %d "
                     "send_and_recv_response_header fail. ret:%d, %s\n",
                     __LINE__, ret, strerror(ret));
             return ret;
@@ -412,7 +384,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
                 &resp_info, fcfg_context->network_timeout,
                 FCFG_PROTO_LIST_CONFIG_RESP);
         if (ret) {
-            logInfo("file: "__FILE__", line: %d "
+            logError("file: "__FILE__", line: %d "
                     "list config fail.err info: %*.s\n",
                     __LINE__, resp_info.body_len, resp_info.error.message);
             break;
@@ -420,7 +392,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
             ret = fcfg_admin_config_response(join_conn, &resp_info,
                     fcfg_context->network_timeout, array, &resp_count, 1);
             if (ret) {
-                logInfo("file: "__FILE__", line: %d "
+                logError("file: "__FILE__", line: %d "
                         "fcfg_admin_config_response fail", __LINE__);
                 break;
             }
@@ -435,10 +407,6 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
         }
     }
 
-    if (ret == 0) {
-        logInfo("file: "__FILE__", line: %d "
-                "list config success !", __LINE__);
-    }
     return ret;
 }
 
@@ -448,12 +416,6 @@ int fcfg_admin_config_list (struct fcfg_context *fcfg_context,
     int ret;
     memset(array, 0, sizeof(FCFGConfigArray));
 
-    if ((ret = fcfg_send_admin_join_request(fcfg_context,
-            fcfg_context->network_timeout,
-            fcfg_context->connect_timeout)) != 0) {
-        return ret;
-    }
-
     ret = fcfg_admin_list_config(fcfg_context, env, config_name, limit, array);
     return ret;
 }
@@ -461,11 +423,9 @@ void fcfg_print_config_array (FCFGConfigArray *array)
 {
     int i;
 
-    fprintf(stderr, "Config count:%d\n", array->count);
     for (i = 0; i < array->count; i++) {
-        fprintf(stderr, "%d: "
-                "%s => %s\n",
-                i,
+        fprintf(stderr,
+                "%s = %s\n",
                 (array->rows + i)->name.str,
                 (array->rows + i)->value.str);
     }

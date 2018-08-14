@@ -27,6 +27,7 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
 {
     IniContext ini_context;
     int result;
+    char *pBasePath;
     char *pDataPath;
     char *config_server[FCFG_CONFIG_SERVER_COUNT_MAX];
     int server_count;
@@ -56,7 +57,8 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
         return 1;
     }
     for (i = 0; i < server_count; i ++) {
-        _get_conn_config(fcfg_context->join_conn + i, config_server[i]);
+        conn_pool_parse_server_info(config_server[i],
+                fcfg_context->join_conn, FCFG_SERVER_DEFAULT_INNER_PORT);
         logDebug("file: "__FILE__", line: %d "
                 "config_server: %s", __LINE__, config_server[i]);
     }
@@ -84,6 +86,31 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
     }
     snprintf(fcfg_context->secret_key, sizeof(fcfg_context->secret_key), "%s",
             pDataPath);
+    load_log_level(&ini_context);
+
+    pBasePath = iniGetStrValue(NULL, "base_path", &ini_context);
+    if (pBasePath) {
+        snprintf(fcfg_context->base_path, sizeof(fcfg_context->base_path),
+                "%s", pBasePath);
+        chopPath(fcfg_context->base_path);
+        if (!fileExists(fcfg_context->base_path)) {
+            logError("file: "__FILE__", line: %d, " \
+                    "\"%s\" can't be accessed, error info: %s", \
+                    __LINE__, fcfg_context->base_path, STRERROR(errno));
+            result = errno != 0 ? errno : ENOENT;
+            return result;
+        }
+        if (!isDir(fcfg_context->base_path)) {
+            logError("file: "__FILE__", line: %d, " \
+                    "\"%s\" is not a directory!", \
+                    __LINE__, fcfg_context->base_path);
+            result = ENOTDIR;
+            return result;
+        }
+        if ((result=log_set_prefix(fcfg_context->base_path, "fcfg_admin")) != 0) {
+            return result;
+        }
+    }
 
     iniFreeContext(&ini_context);
     return 0;

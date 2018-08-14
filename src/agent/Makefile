@@ -3,7 +3,7 @@
 COMPILE = $(CC)  -Wall -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -g -O2 -DDEBUG_FLAG
 INC_PATH = -I.. -I/usr/local/include
 LIB_PATH =  -L/usr/local/lib -lfastcommon -lserverframe -lshmcache -lpthread \
-            -lrt -ldl
+            -ldl
 TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 

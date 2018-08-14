@@ -15,6 +15,7 @@ struct fcfg_context {
     int connect_timeout;
     int server_count;
     int join_index;
+    char base_path[MAX_PATH_SIZE];
     ConnectionInfo *join_conn;
 };
 

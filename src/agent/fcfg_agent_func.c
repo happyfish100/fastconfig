@@ -88,7 +88,8 @@ int fcfg_agent_load_config(const char *filename)
         return 1;
     }
     for (i = 0; i < server_count; i ++) {
-        _get_conn_config(g_agent_global_vars.join_conn + i, config_server[i]);
+        conn_pool_parse_server_info(config_server[i],
+                g_agent_global_vars.join_conn + i, FCFG_SERVER_DEFAULT_INNER_PORT);
         linfo("config_server: %s", config_server[i]);
     }
     g_agent_global_vars.network_timeout = iniGetIntValue(NULL, "network_timeout",

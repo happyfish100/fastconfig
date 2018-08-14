@@ -334,7 +334,7 @@ void fcfg_print_env_array (FCFGEnvArray *array)
     int i;
 
     for (i = 0; i < array->count; i++) {
-        fprintf(stderr, "Env %d: %s\n", i, (array->rows+i)->env.str);
+        fprintf(stderr, "%s\n", (array->rows+i)->env.str);
     }
 }
 void fcfg_free_env_info_array(FCFGEnvArray *array)

@@ -42,7 +42,7 @@ int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_ADD_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            fcfg_context->network_timeout, fcfg_context->connect_timeout);
+            fcfg_context->network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
@@ -94,7 +94,7 @@ int fcfg_admin_del_env (struct fcfg_context *fcfg_context, const char *env)
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_DEL_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            fcfg_context->network_timeout, fcfg_context->connect_timeout);
+            fcfg_context->network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
@@ -241,7 +241,7 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_GET_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            fcfg_context->network_timeout, fcfg_context->connect_timeout);
+            fcfg_context->network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
@@ -292,7 +292,7 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_LIST_ENV_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            fcfg_context->network_timeout, fcfg_context->connect_timeout);
+            fcfg_context->network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",

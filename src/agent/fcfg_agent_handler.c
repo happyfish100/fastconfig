@@ -210,11 +210,10 @@ int fcfg_send_agent_join_request(ConnectionInfo *join_conn, int64_t version)
     int req_len;
     FCFGResponseInfo resp_info;
     int network_timeout = g_agent_global_vars.network_timeout;
-    int connect_timeout = g_agent_global_vars.connect_timeout;
 
     fcfg_proto_set_join_req(buff, g_agent_global_vars.env, version, &req_len);
     ret = send_and_recv_response_header(join_conn, buff, req_len, &resp_info,
-            network_timeout, connect_timeout);
+            network_timeout);
     if (ret) {
         lerr("send_and_recv_response_header fail. ret:%d, %s",
                 ret, strerror(ret));
@@ -296,9 +295,22 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
                 sizeof(FCFGProtoHeader),
                 g_agent_global_vars.network_timeout, &recv_len);
         if (ret == ETIMEDOUT && recv_len == 0) {
-            linfo ("sleep and continue fcfg_agent_recv_server_push :%d, %s",
+            resp_info.body_len = 0;
+            ret = fcfg_send_active_test_req(join_conn, &resp_info,
+                    g_agent_global_vars.network_timeout);
+            if (ret) {
+                lerr("fcfg_send_active_test_req fail.server:%s:%d "
+                        "err no:%d, err info: %s, err msg: %.*s",
+                        join_conn->ip_addr,
+                        join_conn->port,
+                        ret, strerror(ret),
+                        resp_info.body_len, resp_info.error.message);
+                break;
+            }
+            linfo ("recv server fail %d, %s. "
+                    "and send active test request success. "
+                    "will sleep and continue to recv",
                     ret, strerror(ret));
-            ret = 0;
             sleep(1);
             continue;
         }

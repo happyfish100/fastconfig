@@ -57,7 +57,7 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_SET_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            fcfg_context->network_timeout, fcfg_context->connect_timeout);
+            fcfg_context->network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",
@@ -119,7 +119,7 @@ int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_DEL_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            fcfg_context->network_timeout, fcfg_context->connect_timeout);
+            fcfg_context->network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s\n",
@@ -285,7 +285,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_GET_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            fcfg_context->network_timeout, fcfg_context->connect_timeout);
+            fcfg_context->network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s\n",
@@ -373,7 +373,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
         fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_LIST_CONFIG_REQ, body_len);
         size = sizeof(FCFGProtoHeader) + body_len;
         ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-                fcfg_context->network_timeout, fcfg_context->connect_timeout);
+                fcfg_context->network_timeout);
         if (ret) {
             logError("file: "__FILE__", line: %d "
                     "send_and_recv_response_header fail. ret:%d, %s\n",

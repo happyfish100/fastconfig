@@ -150,23 +150,6 @@ int fcfg_admin_destroy (struct fcfg_context *fcfg_context)
     return 0;
 }
 
-int fcfg_admin_check_response(ConnectionInfo *join_conn,
-        FCFGResponseInfo *resp_info, int network_timeout, unsigned char resp_cmd)
-{
-    if (resp_info->cmd == resp_cmd && resp_info->status == 0) {
-        return 0;
-    } else {
-        if (resp_info->body_len) {
-            tcprecvdata_nb_ex(join_conn->sock, resp_info->error.message,
-                    resp_info->body_len, network_timeout, NULL);
-            resp_info->error.message[resp_info->body_len] = '\0';
-        } else {
-            resp_info->error.message[0] = '\0';
-        }
-        return 1;
-    }
-
-}
 int fcfg_send_admin_join_request(struct fcfg_context *fcfg_context, int network_timeout,
         int connect_timeout)
 {
@@ -184,7 +167,7 @@ int fcfg_send_admin_join_request(struct fcfg_context *fcfg_context, int network_
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_ADMIN_JOIN_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
-            network_timeout, connect_timeout);
+            network_timeout);
     if (ret) {
         logError("file: "__FILE__", line: %d "
                 "send_and_recv_response_header fail. ret:%d, %s",

@@ -166,10 +166,16 @@ int fcfg_proto_deal_actvie_test(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response);
 
 int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
-        FCFGResponseInfo *resp_info, int network_timeout, int connect_timeout);
+        FCFGResponseInfo *resp_info, int network_timeout);
 
 void fcfg_proto_response_extract (FCFGProtoHeader *header_pro,
         FCFGResponseInfo *resp_info);
+
+int fcfg_send_active_test_req(ConnectionInfo *conn, FCFGResponseInfo *resp_info,
+        int network_timeout);
+int fcfg_check_response(ConnectionInfo *join_conn,
+        FCFGResponseInfo *resp_info, int network_timeout,
+        unsigned char resp_cmd);
 
 static inline int fcfg_proto_expect_body_length(struct fast_task_info *task,
         const FCFGRequestInfo *request, FCFGResponseInfo *response,

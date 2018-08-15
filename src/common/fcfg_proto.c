@@ -38,8 +38,26 @@ void fcfg_set_admin_header (FCFGProtoHeader *fcfg_header_proto,
     int2buff(body_len, fcfg_header_proto->body_len);
 }
 
+int fcfg_check_response(ConnectionInfo *join_conn,
+        FCFGResponseInfo *resp_info, int network_timeout, unsigned char resp_cmd)
+{
+    if (resp_info->cmd == resp_cmd && resp_info->status == 0) {
+        return 0;
+    } else {
+        if (resp_info->body_len) {
+            tcprecvdata_nb_ex(join_conn->sock, resp_info->error.message,
+                    resp_info->body_len, network_timeout, NULL);
+            resp_info->error.message[resp_info->body_len] = '\0';
+        } else {
+            resp_info->error.message[0] = '\0';
+        }
+        return 1;
+    }
+
+}
+
 int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
-        FCFGResponseInfo *resp_info, int network_timeout, int connect_timeout)
+        FCFGResponseInfo *resp_info, int network_timeout)
 {
     int ret;
     FCFGProtoHeader fcfg_header_resp_pro;
@@ -56,3 +74,20 @@ int send_and_recv_response_header(ConnectionInfo *conn, char *data, int len,
     return 0;
 }
 
+int fcfg_send_active_test_req(ConnectionInfo *conn, FCFGResponseInfo *resp_info,
+        int network_timeout)
+{
+    int ret;
+    FCFGProtoHeader fcfg_header_proto;
+
+    fcfg_set_admin_header(&fcfg_header_proto, FCFG_PROTO_ACTIVE_TEST_REQ,
+            sizeof(FCFGProtoHeader));
+    ret = send_and_recv_response_header(conn, (char *)&fcfg_header_proto,
+            sizeof(FCFGProtoHeader), resp_info, network_timeout);
+    if (ret == 0) {
+        ret = fcfg_check_response(conn, resp_info, network_timeout,
+                FCFG_PROTO_ACTIVE_TEST_RESP);
+    }
+
+    return ret;
+}

@@ -210,11 +210,10 @@ int fcfg_send_agent_join_request(ConnectionInfo *join_conn, int64_t version)
     int req_len;
     FCFGResponseInfo resp_info;
     int network_timeout = g_agent_global_vars.network_timeout;
-    int connect_timeout = g_agent_global_vars.connect_timeout;
 
     fcfg_proto_set_join_req(buff, g_agent_global_vars.env, version, &req_len);
     ret = send_and_recv_response_header(join_conn, buff, req_len, &resp_info,
-            network_timeout, connect_timeout);
+            network_timeout);
     if (ret) {
         lerr("send_and_recv_response_header fail. ret:%d, %s",
                 ret, strerror(ret));
@@ -298,7 +297,13 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
         if (ret == ETIMEDOUT && recv_len == 0) {
             linfo ("sleep and continue fcfg_agent_recv_server_push :%d, %s",
                     ret, strerror(ret));
-            ret = 0;
+            ret = fcfg_send_active_test_req(join_conn, &resp_info,
+                    g_agent_global_vars.network_timeout);
+            if (ret) {
+                lerr("fcfg_send_active_test_req fail. %s",
+                        resp_info.error.message);
+                break;
+            }
             sleep(1);
             continue;
         }

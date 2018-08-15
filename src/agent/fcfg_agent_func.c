@@ -87,6 +87,8 @@ int fcfg_agent_load_config(const char *filename)
         lerr("malloc fail");
         return 1;
     }
+    memset(g_agent_global_vars.join_conn, 0,
+            server_count * sizeof(ConnectionInfo));
     for (i = 0; i < server_count; i ++) {
         conn_pool_parse_server_info(config_server[i],
                 g_agent_global_vars.join_conn + i, FCFG_SERVER_DEFAULT_INNER_PORT);

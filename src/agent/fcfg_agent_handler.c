@@ -47,11 +47,10 @@ static int fcfg_agent_set_config_version(int64_t version)
     return ret;
 }
 
-static int fcfg_agent_get_config_version()
+static int fcfg_agent_get_config_version(int64_t *version)
 {
     char buff[FCFG_CONFIG_ENV_SIZE];
     int ret;
-    int64_t version;
     struct shmcache_value_info value;
     struct shmcache_key_info key;
     
@@ -62,13 +61,24 @@ static int fcfg_agent_get_config_version()
             &value);
     if (ret) {
         lerr("shmcache_get fail:%d, %s", ret, strerror(ret));
-        return 0;
+        ret = shmcache_clear(&g_agent_global_vars.shm_context);
+        if (ret) {
+            lerr("shmcache_remove_all fail. %d, %s. new env: %s",
+                 ret, strerror(ret), g_agent_global_vars.env);
+            return ret;
+        } else {
+            linfo("shmcache_remove_all for new env: %s",
+                   g_agent_global_vars.env);
+        }
+
+        *version = 0;
+        return ret;
     }
     memcpy(buff, value.data, value.length);
     buff[value.length] = '\0';
-    version = atol(buff);
+    *version = atol(buff);
 
-    return version;
+    return ret;
 }
 
 static void _print_push_config (int status, struct shmcache_key_info *key,
@@ -295,7 +305,7 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
                 sizeof(FCFGProtoHeader),
                 g_agent_global_vars.network_timeout, &recv_len);
         if (ret == ETIMEDOUT && recv_len == 0) {
-            linfo ("recv server fail %d, %s",
+            ldebug ("recv server fail %d, %s",
                      ret, strerror(ret));
             resp_info.body_len = 0;
             ret = fcfg_send_active_test_req(join_conn, &resp_info,
@@ -309,9 +319,8 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
                         resp_info.body_len, resp_info.error.message);
                 break;
             }
-            linfo ("send active test request success. "
-                    "will sleep and continue to recv");
-            sleep(1);
+            ldebug ("send active test request success. "
+                    "will continue to recv");
             continue;
         }
 
@@ -349,7 +358,6 @@ static int fcfg_agent_do_conn_config_server (ConnectionInfo **conn)
     int index;
 
     index = 0;
-    srand(time(NULL));
     server_index = rand() % g_agent_global_vars.server_count;
     while (index < g_agent_global_vars.server_count) {
         join_conn = g_agent_global_vars.join_conn + server_index;
@@ -377,6 +385,7 @@ int fcfg_agent_wait_config_server_loop ()
     int64_t version;
     ConnectionInfo *join_conn = NULL;
     ret = 0;
+    srand(time(NULL));
     while (g_agent_global_vars.continue_flag) {
         if (join_conn && join_conn->sock >= 0) {
             conn_pool_disconnect_server(join_conn);
@@ -389,7 +398,11 @@ int fcfg_agent_wait_config_server_loop ()
             sleep(1);
             continue;
         }
-        version = fcfg_agent_get_config_version();
+        ret = fcfg_agent_get_config_version(&version);
+        if (ret) {
+            g_agent_global_vars.continue_flag = false;
+            continue;
+        }
 
         ret = fcfg_send_agent_join_request(join_conn, version);
         if (ret) {

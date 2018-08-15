@@ -3,6 +3,7 @@
 #define _FCFG_SERVER_DAO_H
 
 #include <mysql.h>
+#include <errmsg.h>
 #include "fastcommon/common_define.h"
 #include "common/fcfg_types.h"
 #include "fcfg_server_env.h"

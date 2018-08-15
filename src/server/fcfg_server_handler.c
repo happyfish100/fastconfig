@@ -370,7 +370,12 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     *(value.str + value.len) = '\0';
 
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
-    return fcfg_server_dao_set_config(mysql_context, env, name, value.str);
+    result = fcfg_server_dao_set_config(mysql_context, env, name, value.str);
+    if (result != 0) {
+        response->error.length = sprintf(response->error.message,
+                "internal server error");
+    }
+    return result;
 }
 
 static int fcfg_proto_deal_get_config(struct fast_task_info *task,
@@ -524,7 +529,7 @@ static int fcfg_proto_deal_del_config(struct fast_task_info *task,
     result = fcfg_server_dao_del_config(mysql_context, env, name);
     if (result != 0) {
         response->error.length = sprintf(response->error.message,
-                "query config fail, errno: %d", result);
+                "internal server error");
     }
 
     return result;
@@ -601,7 +606,7 @@ static int fcfg_proto_deal_list_config(struct fast_task_info *task,
             offset, count, &array);
     if (result != 0) {
         response->error.length = sprintf(response->error.message,
-                "server query config fail. errno: %d", result);
+                "internal server error");
         return result;
     }
 

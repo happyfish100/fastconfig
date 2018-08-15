@@ -295,6 +295,8 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
                 sizeof(FCFGProtoHeader),
                 g_agent_global_vars.network_timeout, &recv_len);
         if (ret == ETIMEDOUT && recv_len == 0) {
+            linfo ("recv server fail %d, %s",
+                     ret, strerror(ret));
             resp_info.body_len = 0;
             ret = fcfg_send_active_test_req(join_conn, &resp_info,
                     g_agent_global_vars.network_timeout);
@@ -307,10 +309,8 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
                         resp_info.body_len, resp_info.error.message);
                 break;
             }
-            linfo ("recv server fail %d, %s. "
-                    "and send active test request success. "
-                    "will sleep and continue to recv",
-                    ret, strerror(ret));
+            linfo ("send active test request success. "
+                    "will sleep and continue to recv");
             sleep(1);
             continue;
         }

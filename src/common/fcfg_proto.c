@@ -81,7 +81,7 @@ int fcfg_send_active_test_req(ConnectionInfo *conn, FCFGResponseInfo *resp_info,
     FCFGProtoHeader fcfg_header_proto;
 
     fcfg_set_admin_header(&fcfg_header_proto, FCFG_PROTO_ACTIVE_TEST_REQ,
-            sizeof(FCFGProtoHeader));
+            0);
     ret = send_and_recv_response_header(conn, (char *)&fcfg_header_proto,
             sizeof(FCFGProtoHeader), resp_info, network_timeout);
     if (ret == 0) {

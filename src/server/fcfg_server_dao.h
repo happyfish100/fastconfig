@@ -12,7 +12,7 @@ typedef bool my_bool;
 #endif
 
 typedef struct fcfg_mysql_context {
-    MYSQL mysql;
+    MYSQL *mysql;
 
     struct {
         MYSQL_STMT *update_stmt;
@@ -24,7 +24,7 @@ typedef struct fcfg_mysql_context {
 
     struct {
         MYSQL_STMT *max_env_ver_stmt; //query max env version
-        MYSQL_STMT *max_cfg_ver_stmt; //query max cohfig version
+        MYSQL_STMT *max_cfg_ver_stmt; //query max config version
     } monitor;
 
     struct {

@@ -73,6 +73,10 @@ int fcfg_server_push_init()
         return result;
     }
 
+    if ((result=fcfg_server_env_load(&mysql_context)) != 0) {
+        return result;
+    }
+
     if ((result=init_pthread_attr(&thread_attr,
                     g_sf_global_vars.thread_stack_size)) != 0)
     {

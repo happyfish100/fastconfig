@@ -28,8 +28,8 @@ install:
 	mkdir -p $(DESTDIR)/usr/local/lib
 	mkdir -p $(DESTDIR)/usr/lib
 	mkdir -p $(DESTDIR)/usr/local/include/fcfg
+	cp -f $(ALL_HEADERS) $(DESTDIR)/usr/local/include/fcfg
 	install -m 755 $(SHARED_LIBS) $(DESTDIR)/usr/local/lib
 	install -m 755 $(SHARED_LIBS) $(DESTDIR)/usr/lib
-	cp -f $(ALL_HEADERS) $(DESTDIR)/usr/local/include/fcfg
 clean:
 	rm -f $(ALL_OBJS) $(ALL_PRGS) $(ALL_LIBS)

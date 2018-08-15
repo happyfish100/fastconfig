@@ -40,6 +40,7 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
                 __LINE__, config_filename, result);
         return result;
     }
+    load_log_level(&ini_context);
 
     server_count = iniGetValues(NULL, "config_server",
                     &ini_context, config_server, FCFG_CONFIG_SERVER_COUNT_MAX);
@@ -56,9 +57,11 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
                 "malloc fail", __LINE__);
         return 1;
     }
+    memset(fcfg_context->join_conn, 0,
+            server_count * sizeof(ConnectionInfo));
     for (i = 0; i < server_count; i ++) {
         conn_pool_parse_server_info(config_server[i],
-                fcfg_context->join_conn, FCFG_SERVER_DEFAULT_INNER_PORT);
+                fcfg_context->join_conn + i, FCFG_SERVER_DEFAULT_INNER_PORT);
         logDebug("file: "__FILE__", line: %d "
                 "config_server: %s", __LINE__, config_server[i]);
     }
@@ -86,7 +89,6 @@ int fcfg_admin_load_config (struct fcfg_context *fcfg_context,
     }
     snprintf(fcfg_context->secret_key, sizeof(fcfg_context->secret_key), "%s",
             pDataPath);
-    load_log_level(&ini_context);
 
     pBasePath = iniGetStrValue(NULL, "base_path", &ini_context);
     if (pBasePath) {
@@ -206,27 +208,27 @@ int fcfg_do_conn_config_server (struct fcfg_context *fcfg_context)
     int ret;
     int server_index;
     ConnectionInfo *join_conn;
-    int index;
+    int i;
 
-    index = 0;
+    i = 0;
     srand(time(NULL));
     server_index = rand() % fcfg_context->server_count;
-    while (index < fcfg_context->server_count) {
+    while (i < fcfg_context->server_count) {
         join_conn = fcfg_context->join_conn + server_index;
         if ((ret = conn_pool_connect_server(join_conn,
                         fcfg_context->connect_timeout)) != 0) {
             logError("file: "__FILE__", line: %d "
-                    "conn_pool_connect_server fail. server index[%d] %s:%d, ret:%d, %s\n",
+                    "conn_pool_connect_server fail. server index[%d] %s:%d, ret:%d, %s",
                     __LINE__,
                     server_index,
                     join_conn->ip_addr,
                     join_conn->port,
                     ret, strerror(ret));
             server_index = (server_index + 1) % fcfg_context->server_count;
-            index ++;
+            i ++;
         } else {
             /* connect success */
-            fcfg_context->join_index = index;
+            fcfg_context->join_index = server_index;
             break;
         }
     }

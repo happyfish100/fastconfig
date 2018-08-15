@@ -385,7 +385,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
                 FCFG_PROTO_LIST_CONFIG_RESP);
         if (ret) {
             logError("file: "__FILE__", line: %d "
-                    "list config fail.err info: %*.s\n",
+                    "list config fail.err info: %.*s\n",
                     __LINE__, resp_info.body_len, resp_info.error.message);
             break;
         } else {

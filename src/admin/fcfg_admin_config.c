@@ -43,7 +43,7 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name, const char *config_value)
 {
     int ret;
-    char buff[1024];
+    char buff[64 + FCFG_CONFIG_ENV_SIZE + FCFG_CONFIG_NAME_SIZE + FCFG_CONFIG_VALUE_SIZE];
     int body_len;
     int size;
     FCFGResponseInfo resp_info;
@@ -79,8 +79,10 @@ int fcfg_admin_config_set (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name, const char *config_value)
 {
     int ret;
-
-    ret = fcfg_admin_set_config(fcfg_context, env, config_name, config_value);
+    ret = fcfg_admin_check_arg(env, config_name, config_value);
+    if (ret == 0) {
+        ret = fcfg_admin_set_config(fcfg_context, env, config_name, config_value);
+    }
 
     return ret;
 }
@@ -106,7 +108,7 @@ int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name)
 {
     int ret;
-    char buff[1024];
+    char buff[64 + FCFG_CONFIG_ENV_SIZE + FCFG_CONFIG_NAME_SIZE];
     int body_len;
     int size;
     FCFGResponseInfo resp_info;
@@ -142,7 +144,11 @@ int fcfg_admin_config_del (struct fcfg_context *fcfg_context,
 {
     int ret;
 
-    ret = fcfg_admin_del_config(fcfg_context, env, config_name);
+    ret = fcfg_admin_check_arg(env, config_name, NULL);
+    if (ret == 0) {
+        ret = fcfg_admin_del_config(fcfg_context, env, config_name);
+    }
+
     return ret;
 }
 void fcfg_set_admin_get_config(char *buff, const char *env,
@@ -272,7 +278,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name, FCFGConfigArray *array)
 {
     int ret;
-    char buff[1024];
+    char buff[64 + FCFG_CONFIG_ENV_SIZE + FCFG_CONFIG_NAME_SIZE];
     int body_len;
     int size;
     FCFGResponseInfo resp_info;
@@ -312,7 +318,10 @@ int fcfg_admin_config_get (struct fcfg_context *fcfg_context,
     int ret;
     memset(array, 0, sizeof(FCFGConfigArray));
 
-    ret = fcfg_admin_get_config(fcfg_context, env, config_name, array);
+    ret = fcfg_admin_check_arg(env, config_name, NULL);
+    if (ret == 0) {
+        ret = fcfg_admin_get_config(fcfg_context, env, config_name, array);
+    }
     return ret;
 }
 void fcfg_set_admin_list_config(char *buff, const char *env,
@@ -347,7 +356,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name, int limit, FCFGConfigArray *array)
 {
     int ret;
-    char buff[1024];
+    char buff[64 + FCFG_CONFIG_ENV_SIZE + FCFG_CONFIG_NAME_SIZE];
     int body_len;
     int size;
     int offset;
@@ -416,7 +425,11 @@ int fcfg_admin_config_list (struct fcfg_context *fcfg_context,
     int ret;
     memset(array, 0, sizeof(FCFGConfigArray));
 
-    ret = fcfg_admin_list_config(fcfg_context, env, config_name, limit, array);
+    ret = fcfg_admin_check_arg(env, config_name, NULL);
+    if (ret == 0) {
+        ret = fcfg_admin_list_config(fcfg_context, env, config_name, limit, array);
+    }
+
     return ret;
 }
 void fcfg_print_config_array (FCFGConfigArray *array)

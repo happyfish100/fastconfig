@@ -276,3 +276,23 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
 
     return 0;
 }
+
+int fcfg_admin_check_arg(const char *env, const char *name, const char *value)
+{
+    if (env && (strlen(env) > FCFG_CONFIG_MAX_ENV_LEN)) {
+        logError("env len too long %lu > %d", strlen(env), FCFG_CONFIG_MAX_ENV_LEN);
+        return -1;
+    }
+
+    if (name && (strlen(name) > FCFG_CONFIG_MAX_NAME_LEN)) {
+        logError("config name len too long %lu > %d", strlen(name), FCFG_CONFIG_MAX_NAME_LEN);
+        return -1;
+    }
+
+    if (value && (strlen(value) > FCFG_CONFIG_MAX_VALUE_LEN)) {
+        logError("config value len too long %lu > %d", strlen(value), FCFG_CONFIG_MAX_VALUE_LEN);
+        return -1;
+    }
+
+    return 0;
+}

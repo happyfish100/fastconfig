@@ -33,6 +33,7 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
         FCFGConfigEntry *rows, int *config_len);
 void fcfg_admin_print_env_array (FCFGEnvArray *array);
 void fcfg_admin_print_config_array (FCFGConfigArray *array);
+int fcfg_admin_check_arg(const char *env, const char *name, const char *value);
 
 #define fcfg_admin_check_response(join_conn, resp_info, network_timeout, resp_cmd) \
     fcfg_check_response(join_conn, resp_info, network_timeout, resp_cmd)

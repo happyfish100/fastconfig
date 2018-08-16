@@ -29,7 +29,7 @@ void fcfg_set_admin_add_env(char *buff, const char *env,
 int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
 {
     int ret;
-    char buff[1024];
+    char buff[64 + FCFG_CONFIG_ENV_SIZE];
     int body_len;
     int size;
     FCFGResponseInfo resp_info;
@@ -64,7 +64,10 @@ int fcfg_admin_env_add (struct fcfg_context *fcfg_context, const char *env)
 {
     int ret;
 
-    ret = fcfg_admin_add_env(fcfg_context, env);
+    ret = fcfg_admin_check_arg(env, NULL, NULL);
+    if (ret == 0) {
+        ret = fcfg_admin_add_env(fcfg_context, env);
+    }
     return ret;
 }
 
@@ -81,7 +84,7 @@ void fcfg_set_admin_del_env(char *buff, const char *env,
 int fcfg_admin_del_env (struct fcfg_context *fcfg_context, const char *env)
 {
     int ret;
-    char buff[1024];
+    char buff[64 + FCFG_CONFIG_ENV_SIZE];
     int body_len;
     int size;
     FCFGResponseInfo resp_info;
@@ -116,8 +119,10 @@ int fcfg_admin_env_del (struct fcfg_context *fcfg_context, const char *env)
 {
     int ret;
 
-
-    ret = fcfg_admin_del_env(fcfg_context, env);
+    ret = fcfg_admin_check_arg(env, NULL, NULL);
+    if (ret == 0) {
+        ret = fcfg_admin_del_env(fcfg_context, env);
+    }
     return ret;
 }
 
@@ -228,7 +233,7 @@ int fcfg_admin_env_response(ConnectionInfo *join_conn,
 int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFGEnvArray *array)
 {
     int ret;
-    char buff[1024];
+    char buff[64 + FCFG_CONFIG_ENV_SIZE];
     int body_len;
     int size;
     ConnectionInfo *join_conn;
@@ -270,7 +275,10 @@ int fcfg_admin_env_get (struct fcfg_context *fcfg_context, const char *env,
     int ret;
     memset(array, 0, sizeof(FCFGEnvArray));
 
-    ret = fcfg_admin_get_env(fcfg_context, env, array);
+    ret = fcfg_admin_check_arg(env, NULL, NULL);
+    if (ret == 0) {
+        ret = fcfg_admin_get_env(fcfg_context, env, array);
+    }
 
     log_destroy();
     return ret;
@@ -279,7 +287,7 @@ int fcfg_admin_env_get (struct fcfg_context *fcfg_context, const char *env,
 int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
 {
     int ret;
-    char buff[1024];
+    char buff[64];
     int body_len;
     int size;
     FCFGResponseInfo resp_info;

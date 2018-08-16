@@ -528,8 +528,13 @@ static int fcfg_proto_deal_del_config(struct fast_task_info *task,
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
     result = fcfg_server_dao_del_config(mysql_context, env, name);
     if (result != 0) {
-        response->error.length = sprintf(response->error.message,
-                "internal server error");
+        if (result == ENOENT) {
+            response->error.length = sprintf(response->error.message,
+                    "config: %s not exist", name);
+        } else {
+            response->error.length = sprintf(response->error.message,
+                    "internal server error");
+        }
     }
 
     return result;

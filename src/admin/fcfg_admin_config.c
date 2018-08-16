@@ -68,7 +68,7 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         logError("file: "__FILE__", line: %d "
-                "set config fail.err info: %s",
+                "set config fail. error info: %s",
                 __LINE__, resp_info.error.message);
     }
 
@@ -130,7 +130,7 @@ int fcfg_admin_del_config (struct fcfg_context *fcfg_context,
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         logError("file: "__FILE__", line: %d "
-                "del config fail.err info: %s\n",
+                "del config fail. error info: %s\n",
                 __LINE__, resp_info.error.message);
     }
 
@@ -296,7 +296,7 @@ int fcfg_admin_get_config (struct fcfg_context *fcfg_context,
             fcfg_context->network_timeout, FCFG_PROTO_GET_CONFIG_RESP);
     if (ret) {
         logError("file: "__FILE__", line: %d "
-                "get config fail.err info: %s\n",
+                "get config fail. error info: %s\n",
                 __LINE__, resp_info.error.message);
     } else {
         ret = fcfg_admin_config_response(join_conn, &resp_info,
@@ -385,7 +385,7 @@ int fcfg_admin_list_config (struct fcfg_context *fcfg_context,
                 FCFG_PROTO_LIST_CONFIG_RESP);
         if (ret) {
             logError("file: "__FILE__", line: %d "
-                    "list config fail.err info: %.*s\n",
+                    "list config fail. error info: %.*s\n",
                     __LINE__, resp_info.body_len, resp_info.error.message);
             break;
         } else {

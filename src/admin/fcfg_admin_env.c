@@ -53,7 +53,7 @@ int fcfg_admin_add_env (struct fcfg_context *fcfg_context, const char *env)
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         logError("file: "__FILE__", line: %d "
-                "add env fail.err info: %s",
+                "add env fail. error info: %s",
                 __LINE__, resp_info.error.message);
     }
 
@@ -105,7 +105,7 @@ int fcfg_admin_del_env (struct fcfg_context *fcfg_context, const char *env)
             fcfg_context->network_timeout, FCFG_PROTO_ACK);
     if (ret) {
         logError("file: "__FILE__", line: %d "
-                "del env fail.err info: %s",
+                "del env fail. error info: %s",
                 __LINE__, resp_info.error.message);
     }
 
@@ -253,7 +253,7 @@ int fcfg_admin_get_env (struct fcfg_context *fcfg_context, const char *env, FCFG
             fcfg_context->network_timeout, FCFG_PROTO_GET_ENV_RESP);
     if (ret) {
         logError("file: "__FILE__", line: %d "
-                "get env fail.err info: %s",
+                "get env fail. error info: %s",
                 __LINE__,
                 resp_info.error.message);
     } else {
@@ -304,7 +304,7 @@ int fcfg_admin_list_env (struct fcfg_context *fcfg_context, FCFGEnvArray *array)
             &resp_info, fcfg_context->network_timeout, FCFG_PROTO_LIST_ENV_RESP);
     if (ret) {
         logError("file: "__FILE__", line: %d, "
-                "list env fail.err info: %s",
+                "list env fail. error info: %s",
                 __LINE__,
                 resp_info.error.message);
     } else {

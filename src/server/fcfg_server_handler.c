@@ -832,9 +832,9 @@ int fcfg_server_deal_task(struct fast_task_info *task)
                 request.body_len, response.body_len);
     }
 
-    ldebug("req cmd: %d, req body_len: %d, "
+    ldebug("client ip: %s, req cmd: %d, req body_len: %d, "
             "resp cmd: %d, status: %d, resp body_len: %d, "
-            "time used: %d ms",
+            "time used: %d ms",  task->client_ip,
             request.cmd, request.body_len,
             response.cmd, proto_header->status,
             response.body_len, time_used);
@@ -881,14 +881,15 @@ static int fcfg_server_send_active_test(struct fast_task_info *task)
 
 int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
 {
+    FCFGServerContext *server_context;
     struct common_blocked_queue *push_queue;
     FCFGServerPushEvent *event;
     FCFGServerTaskArg *task_arg;
     int64_t task_version;
     int unexpect_waiting_type;
 
-    push_queue = &((FCFGServerContext *)thread_data->arg)->push_queue;
-
+    server_context = (FCFGServerContext *)thread_data->arg;
+    push_queue = &server_context->push_queue;
     while ((event=(FCFGServerPushEvent *)common_blocked_queue_try_pop(
                     push_queue)) != NULL)
     {
@@ -920,6 +921,15 @@ int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
         }
 
         fcfg_server_free_event(event);
+    }
+
+    if (g_server_global_vars.db_config.ping_interval > 0 &&
+            g_current_time - server_context->mysql_context.last_ping_time >=
+            g_server_global_vars.db_config.ping_interval)
+    {
+        int thread_index = thread_data - g_sf_global_vars.thread_data;
+        fcfg_server_dao_ping(&server_context->mysql_context, thread_index);
+        server_context->mysql_context.last_ping_time = g_current_time;
     }
 
     return 0;

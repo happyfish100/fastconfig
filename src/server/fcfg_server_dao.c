@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include "fastcommon/shared_func.h"
 #include "fastcommon/logger.h"
+#include "fastcommon/sched_thread.h"
 #include "sf/sf_global.h"
 #include "sf/sf_service.h"
 #include "common/fcfg_types.h"
@@ -37,7 +38,7 @@ static int fcfg_server_dao_check_stmt(FCFGMySQLContext *context, MYSQL_STMT **st
     }
     if (mysql_stmt_prepare(*stmt, sql, strlen(sql)) != 0) {
         logError("file: "__FILE__", line: %d, "
-                "prepare *stmt fail, error info: %s, sql: %s",
+                "prepare stmt fail, error info: %s, sql: %s",
                 __LINE__, mysql_stmt_error(*stmt), sql);
         mysql_stmt_close(*stmt);
         *stmt = NULL;
@@ -132,6 +133,11 @@ int fcfg_server_dao_init(FCFGMySQLContext *context)
         return ENOTCONN;
     }
 
+    logInfo("file: "__FILE__", line: %d, "
+            "connect to mysql server %s:%d success",
+            __LINE__, g_server_global_vars.db_config.host,
+            g_server_global_vars.db_config.port);
+    context->last_ping_time = g_current_time;
     return 0;
 }
 
@@ -159,6 +165,7 @@ void fcfg_server_dao_destroy(FCFGMySQLContext *context)
 
     mysql_close(context->mysql);
     memset(context, 0, sizeof(FCFGMySQLContext));
+    context->last_ping_time = g_current_time;
 }
 
 static inline int fcfg_server_dao_stmt_execute(FCFGMySQLContext *context,
@@ -441,6 +448,12 @@ static int fcfg_server_dao_store_rows(FCFGMySQLContext *context,
     FCFGConfigEntry *current;
     FCFGConfigEntry *end;
 
+    if ((result=MYSQL_STMT_EXECUTE(context, stmt)) != 0) {
+        array->rows = NULL;
+        array->alloc = array->count = 0;
+        return result;
+    }
+
     buffer.name_len = buffer.value_len = 0;
     memset(result_binds, 0, sizeof(result_binds));
     result_binds[0].buffer_type = MYSQL_TYPE_STRING;
@@ -476,12 +489,6 @@ static int fcfg_server_dao_store_rows(FCFGMySQLContext *context,
     result_binds[5].buffer = (char *)&buffer.update_time;
     result_binds[5].is_null = &is_null[5];
     result_binds[5].error = &error[5];
-
-    if ((result=MYSQL_STMT_EXECUTE(context, stmt)) != 0) {
-        array->rows = NULL;
-        array->alloc = array->count = 0;
-        return result;
-    }
 
     if (mysql_stmt_bind_result(stmt, result_binds) != 0) {
         logError("file: "__FILE__", line: %d, "
@@ -1000,6 +1007,10 @@ static int fcfg_server_dao_store_max_version(FCFGMySQLContext *context,
 
     *max_version = 0;
 
+    if ((result=MYSQL_STMT_EXECUTE(context, stmt)) != 0) {
+        return result;
+    }
+
     memset(result_binds, 0, sizeof(result_binds));
     result_binds[0].buffer_type = MYSQL_TYPE_LONGLONG;
     result_binds[0].buffer = (char *)max_version;
@@ -1010,10 +1021,6 @@ static int fcfg_server_dao_store_max_version(FCFGMySQLContext *context,
                 "call mysql_stmt_bind_result fail, error info: %s",
                 __LINE__, mysql_stmt_error(stmt));
         return EINVAL;
-    }
-
-    if ((result=MYSQL_STMT_EXECUTE(context, stmt)) != 0) {
-        return result;
     }
 
     if (mysql_stmt_store_result(stmt) != 0) {
@@ -1078,4 +1085,37 @@ int fcfg_server_dao_max_env_version(FCFGMySQLContext *context,
 
     return fcfg_server_dao_store_max_version(context,
             context->monitor.max_env_ver_stmt, max_version);
+}
+
+int fcfg_server_dao_ping(FCFGMySQLContext *context, const int thread_index)
+{
+    int error_no;
+    int result;
+
+    if (context->mysql == NULL) {
+        logDebug("file: "__FILE__", line: %d, "
+                "thread[%d] mysql handler is NULL, skip ping",
+                __LINE__, thread_index);
+        return 0;
+    }
+
+    if (mysql_ping(context->mysql) == 0) {
+        logDebug("file: "__FILE__", line: %d, "
+                "thread[%d] mysql ping OK",
+                __LINE__, thread_index);
+        result = 0;
+    } else {
+        error_no = mysql_errno(context->mysql);
+        logError("file: "__FILE__", line: %d, "
+                "thread[%d] call mysql_ping fail, "
+                "error code: %d, error info: %s",
+                __LINE__, thread_index, error_no,
+                mysql_error(context->mysql));
+        if ((error_no == CR_SERVER_GONE_ERROR) || (error_no == CR_SERVER_LOST)) {
+            fcfg_server_dao_destroy(context);
+        }
+        result = EFAULT;
+    }
+
+    return result;
 }

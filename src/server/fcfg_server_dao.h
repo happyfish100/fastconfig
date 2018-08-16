@@ -2,6 +2,7 @@
 #ifndef _FCFG_SERVER_DAO_H
 #define _FCFG_SERVER_DAO_H
 
+#include <time.h>
 #include <mysql.h>
 #include <errmsg.h>
 #include "fastcommon/common_define.h"
@@ -31,6 +32,8 @@ typedef struct fcfg_mysql_context {
     struct {
         MYSQL_STMT *select_stmt;  //query by env and version
     } agent;
+
+    time_t last_ping_time;
 } FCFGMySQLContext;
 
 #ifdef __cplusplus
@@ -79,6 +82,8 @@ extern "C" {
 
     int fcfg_server_dao_max_env_version(FCFGMySQLContext *context,
             int64_t *max_version);
+
+    int fcfg_server_dao_ping(FCFGMySQLContext *context, const int thread_index);
 
 #ifdef __cplusplus
 }

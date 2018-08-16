@@ -153,7 +153,7 @@ static int _extract_to_array(char *buff, int len, FCFGEnvArray *array,
     }
     if (ret || (size != len)) {
         logError("file: "__FILE__", line: %d, "
-                "_extract_to_array fail ret:%d, count:%d, size: %d, len: %d\n",
+                "_extract_to_array fail ret:%d, count:%d, size: %d, len: %d",
                 __LINE__, ret, count, size, len);
         return -1;
     }

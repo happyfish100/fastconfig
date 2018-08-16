@@ -198,6 +198,8 @@ static int fcfg_agent_check_response(ConnectionInfo *join_conn,
                         return ret;
                     } else {
                         ret = fcfg_agent_set_config_version(0);
+                        linfo("set version 0. and re-join");
+                        return -1
                     }
                 }
             }
@@ -407,7 +409,6 @@ int fcfg_agent_wait_config_server_loop ()
         ret = fcfg_send_agent_join_request(join_conn, version);
         if (ret) {
             lerr ("join server fcfg_send_agent_join_request fail.%d, %s", ret, strerror(ret));
-            sleep(1);
             continue;
         }
         linfo("agent join server success.conn: %s:%d",

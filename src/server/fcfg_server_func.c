@@ -49,6 +49,8 @@ static int fcfg_server_load_db_config(IniContext *ini_context)
     {
         return ENOENT;
     }
+    g_server_global_vars.db_config.ping_interval = iniGetIntValue(
+            DB_SECTION_NAME, "ping_interval", ini_context, 14400);
 
     lengths.host = strlen(host) + 1;
     lengths.user = strlen(user) + 1;
@@ -206,7 +208,7 @@ int fcfg_server_load_config(const char *filename)
 
     snprintf(server_config_str, sizeof(server_config_str),
             "db config {host: %s, port: %d, user: %s, "
-            "password: %s, database: %s}, "
+            "password: %s, database: %s, ping_interval: %d s}, "
             "admin config {username: %s, secret_key: %s} "
             "reload_interval_ms: %d ms, "
             "check_alive_interval: %d s, "
@@ -217,6 +219,7 @@ int fcfg_server_load_config(const char *filename)
             g_server_global_vars.db_config.user,
             g_server_global_vars.db_config.password,
             g_server_global_vars.db_config.database,
+            g_server_global_vars.db_config.ping_interval,
             g_server_global_vars.admin.username.str,
             g_server_global_vars.admin.secret_key.str,
             g_server_global_vars.reload_interval_ms,

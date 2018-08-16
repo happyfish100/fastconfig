@@ -18,6 +18,7 @@ typedef struct fcfg_server_global_vars {
         char *user;
         char *password;
         char *database;
+        int ping_interval;
     } db_config;
 
     struct {

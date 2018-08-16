@@ -47,8 +47,8 @@ static void *fcfg_server_push_entrance(void *arg)
         }
 
         usleep(usleep_time);
-        if (count++ % 1000 == 0) {
-            logInfo("push loop: %"PRId64, count);
+        if (++count % 10000 == 0) {
+            logDebug("push loop count: %"PRId64, count);
         }
     }
 

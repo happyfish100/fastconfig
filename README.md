@@ -6,6 +6,7 @@ and the changed configuration items will be pushed to agents within a second.
 
 the config servers are peer-to-peer relationship. env & config storage use mysql.
 
-shared memory use libshmcache, you should config the shared memory type to mmap.
+shared memory use libshmcache, you should config the shared memory type to mmap
+and config recycle_valid_entries to false.
 
 ![architect](images/architect.png)

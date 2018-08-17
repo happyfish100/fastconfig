@@ -138,7 +138,7 @@ static int fcfg_set_push_config(const char *body_data,
         _print_push_config(fcfg_push_body_data.status,
                 &key, &value, fcfg_push_body_data.version);
         if (ret) {
-            lerr ("shmcache_set_ex/delete fail:status:%d, %d, %s",
+            lerr ("shmcache_set_ex/delete fail. status:%d, %d, %s",
                     fcfg_push_body_data.status, ret, strerror(ret));
             if (fcfg_push_body_data.status == FCFG_CONFIG_STATUS_NORMAL) {
                 break;
@@ -199,7 +199,7 @@ static int fcfg_agent_check_response(ConnectionInfo *join_conn,
                     } else {
                         ret = fcfg_agent_set_config_version(0);
                         linfo("set version 0. and re-join");
-                        return -1
+                        return -1;
                     }
                 }
             }
@@ -289,10 +289,12 @@ int fcfg_agent_recv_server_psuh_config (ConnectionInfo *join_conn, int body_len)
         return ret;
     }
     ret = fcfg_set_push_config(buff, body_len, &max_version);
+    if (ret == 0) {
+        resp_status = (ret >= 0) ? ret : (-1 * ret);
+        return fcfg_agent_send_push_config_resp(join_conn, max_version, resp_status);
+    }
 
-    resp_status = (ret >= 0) ? ret : (-1 * ret);
-
-    return fcfg_agent_send_push_config_resp(join_conn, max_version, resp_status);
+    return ret;
 }
 
 int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
@@ -327,14 +329,14 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
         }
 
         if (ret) {
-            lerr ("fcfg_agent_recv_server_push rcv err:%d,%s",
+            lerr ("fcfg_agent_recv_server_push rcv err: %d, %s",
                     ret, strerror(ret)); 
             break;
         }
 
         fcfg_proto_response_extract(&fcfg_header_resp_pro, &resp_info);
-        linfo ("fcfg_agent_recv_server_push rcv info:%d,cmd:%d, len:%d",
-                ret, resp_info.cmd, resp_info.body_len);
+        linfo ("fcfg_agent_recv_server_push rcv info. cmd:%d, body len:%d",
+                resp_info.cmd, resp_info.body_len);
         switch (resp_info.cmd) {
             case FCFG_PROTO_ACTIVE_TEST_REQ:
                 ret = fcfg_agent_recv_server_active_test(join_conn);
@@ -344,7 +346,7 @@ int fcfg_agent_recv_server_push (ConnectionInfo *join_conn)
                         resp_info.body_len);
                 break;
             default:
-                lerr ("get push config error cmd:%d", resp_info.cmd);
+                lerr ("get push config error cmd: %d", resp_info.cmd);
                 ret = -1;
                 break;
         }
@@ -365,7 +367,7 @@ static int fcfg_agent_do_conn_config_server (ConnectionInfo **conn)
         join_conn = g_agent_global_vars.join_conn + server_index;
         if ((ret = conn_pool_connect_server(join_conn,
                         g_agent_global_vars.connect_timeout)) != 0) {
-            lerr("conn_pool_connect_server fail. server index[%d] %s:%d, ret:%d, %s",
+            lerr("conn_pool_connect_server fail. server index[%d] %s:%d, ret: %d, %s",
                     server_index,
                     join_conn->ip_addr,
                     join_conn->port,

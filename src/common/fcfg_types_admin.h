@@ -9,6 +9,7 @@
 #define FCFG_CONFIG_STATUS_NORMAL        0
 #define FCFG_CONFIG_STATUS_DELETED       1
 
+#define FCFG_CONFIG_TYPE_NONE            0
 #define FCFG_CONFIG_TYPE_STRING          1
 #define FCFG_CONFIG_TYPE_LIST            3
 #define FCFG_CONFIG_TYPE_MAP             5

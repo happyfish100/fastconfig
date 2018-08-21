@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS fast_config (
        name VARCHAR(64) NOT NULL,
        value TEXT NOT NULL,
        version BIGINT(20) NOT NULL,
-       status TINYINT NOT NULL DEFAULT 0,  -- 0 normal, 1 deleted
+       status TINYINT NOT NULL DEFAULT 0,  -- 0: normal, 1: deleted
+       type TINYINT NOT NULL DEFAULT 1,  -- 1: string, 3: list, 5: map
        create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
        update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
        PRIMARY KEY (env, name),

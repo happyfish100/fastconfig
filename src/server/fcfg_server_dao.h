@@ -45,7 +45,7 @@ extern "C" {
     void fcfg_server_dao_destroy(FCFGMySQLContext *context);
 
     int fcfg_server_dao_set_config(FCFGMySQLContext *context, const char *env,
-            const char *name, const char *value);
+            const char *name, const short type, const char *value);
 
     int fcfg_server_dao_get_config(FCFGMySQLContext *context, const char *env,
             const char *name, FCFGConfigArray *array);

@@ -310,6 +310,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     char name[FCFG_CONFIG_NAME_SIZE];
     int env_len;
     int name_len;
+    short type;
     int data_body_len;
     string_t value;
     int result;
@@ -326,6 +327,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
 
     env_len = set_config_req->env_len;
     name_len = set_config_req->name_len;
+    type = set_config_req->type;
     value.len = buff2int(set_config_req->value_len);
 
     if (env_len <= 0 || env_len > FCFG_CONFIG_MAX_ENV_LEN) {
@@ -337,6 +339,14 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     if (name_len <= 0 || name_len  > FCFG_CONFIG_MAX_NAME_LEN) {
         response->error.length = sprintf(response->error.message,
                 "invalid name length: %d", name_len);
+        return EINVAL;
+    }
+
+    if (!(type == FCFG_CONFIG_TYPE_STRING || type == FCFG_CONFIG_TYPE_LIST ||
+                type == FCFG_CONFIG_TYPE_MAP))
+    {
+        response->error.length = sprintf(response->error.message,
+                "invalid type: %d", type);
         return EINVAL;
     }
 
@@ -370,7 +380,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     *(value.str + value.len) = '\0';
 
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
-    result = fcfg_server_dao_set_config(mysql_context, env, name, value.str);
+    result = fcfg_server_dao_set_config(mysql_context, env, name, type, value.str);
     if (result != 0) {
         response->error.length = sprintf(response->error.message,
                 "internal server error");
@@ -459,6 +469,7 @@ static int fcfg_proto_deal_get_config(struct fast_task_info *task,
     get_config_resp = (FCFGProtoGetConfigResp *)(task->data + sizeof(FCFGProtoHeader));
     get_config_resp->status = array.rows->status;
     get_config_resp->name_len = array.rows->name.len;
+    get_config_resp->type = array.rows->type;
     int2buff(array.rows->value.len, get_config_resp->value_len);
     long2buff(array.rows->version, get_config_resp->version);
     int2buff(array.rows->create_time, get_config_resp->create_time);
@@ -637,6 +648,7 @@ static int fcfg_proto_deal_list_config(struct fast_task_info *task,
         list_config_resp = (FCFGProtoListConfigRespBodyPart *)p;
         list_config_resp->status = entry->status;
         list_config_resp->name_len = entry->name.len;
+        list_config_resp->type = entry->type;
         int2buff(entry->value.len, list_config_resp->value_len);
         long2buff(entry->version, list_config_resp->version);
         int2buff(entry->create_time, list_config_resp->create_time);

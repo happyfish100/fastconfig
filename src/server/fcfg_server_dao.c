@@ -47,13 +47,13 @@ static int fcfg_server_dao_check_stmt(FCFGMySQLContext *context, MYSQL_STMT **st
     return 0;
 }
 
-#define CONFIG_SELECT_SQL "SELECT name, value, version, status, " \
+#define CONFIG_SELECT_SQL "SELECT name, type, value, version, status, " \
         "UNIX_TIMESTAMP(create_time), UNIX_TIMESTAMP(update_time) FROM fast_config "
 
 const char *insert_sql = "INSERT INTO fast_config "
-    "(env, name, value, version, status) VALUES (?, ?, ?, ?, 0)";
+    "(env, name, type, value, version, status) VALUES (?, ?, ?, ?, ?, 0)";
 const char *update_sql = "UPDATE fast_config "
-    "SET value = ?, version = ?, status = 0 WHERE env = ? AND name = ?";
+    "SET type = ?, value = ?, version = ?, status = 0 WHERE env = ? AND name = ?";
 const char *delete_sql = "UPDATE fast_config "
     "SET version = ?, status = 1 WHERE env = ? AND name = ? and status = 0";
 const char *select_sql = CONFIG_SELECT_SQL
@@ -278,10 +278,10 @@ static int64_t fcfg_server_dao_next_version(FCFGMySQLContext *context,
     fcfg_server_dao_next_version(context, FCFG_KEY_NAME_ENVIRONMENT_VERSION)
 
 int fcfg_server_dao_set_config(FCFGMySQLContext *context, const char *env,
-        const char *name, const char *value)
+        const char *name, const short type, const char *value)
 {
-    MYSQL_BIND update_binds[4];
-    MYSQL_BIND insert_binds[4];
+    MYSQL_BIND update_binds[5];
+    MYSQL_BIND insert_binds[5];
     int64_t version;
     unsigned long env_len;
     unsigned long name_len;
@@ -315,20 +315,23 @@ int fcfg_server_dao_set_config(FCFGMySQLContext *context, const char *env,
 
     memset(update_binds, 0, sizeof(update_binds));
 
-    update_binds[0].buffer_type = MYSQL_TYPE_STRING;
-    update_binds[0].buffer = (char *)value;
-    update_binds[0].length = &value_len;
+    update_binds[0].buffer_type = MYSQL_TYPE_SHORT;
+    update_binds[0].buffer = (char *)&type;
 
-    update_binds[1].buffer_type = MYSQL_TYPE_LONGLONG;
-    update_binds[1].buffer = (char *)&version;
+    update_binds[1].buffer_type = MYSQL_TYPE_STRING;
+    update_binds[1].buffer = (char *)value;
+    update_binds[1].length = &value_len;
 
-    update_binds[2].buffer_type = MYSQL_TYPE_STRING;
-    update_binds[2].buffer = (char *)env;
-    update_binds[2].length = &env_len;
+    update_binds[2].buffer_type = MYSQL_TYPE_LONGLONG;
+    update_binds[2].buffer = (char *)&version;
 
     update_binds[3].buffer_type = MYSQL_TYPE_STRING;
-    update_binds[3].buffer = (char *)name;
-    update_binds[3].length = &name_len;
+    update_binds[3].buffer = (char *)env;
+    update_binds[3].length = &env_len;
+
+    update_binds[4].buffer_type = MYSQL_TYPE_STRING;
+    update_binds[4].buffer = (char *)name;
+    update_binds[4].length = &name_len;
 
     if (mysql_stmt_bind_param(context->admin.update_stmt, update_binds) != 0) {
         logError("file: "__FILE__", line: %d, "
@@ -358,12 +361,15 @@ int fcfg_server_dao_set_config(FCFGMySQLContext *context, const char *env,
     insert_binds[1].buffer = (char *)name;
     insert_binds[1].length = &name_len;
 
-    insert_binds[2].buffer_type = MYSQL_TYPE_STRING;
-    insert_binds[2].buffer = (char *)value;
-    insert_binds[2].length = &value_len;
+    insert_binds[2].buffer_type = MYSQL_TYPE_SHORT;
+    insert_binds[2].buffer = (char *)&type;
 
-    insert_binds[3].buffer_type = MYSQL_TYPE_LONGLONG;
-    insert_binds[3].buffer = (char *)&version;
+    insert_binds[3].buffer_type = MYSQL_TYPE_STRING;
+    insert_binds[3].buffer = (char *)value;
+    insert_binds[3].length = &value_len;
+
+    insert_binds[4].buffer_type = MYSQL_TYPE_LONGLONG;
+    insert_binds[4].buffer = (char *)&version;
 
     if (mysql_stmt_bind_param(context->admin.insert_stmt, insert_binds) != 0) {
         logError("file: "__FILE__", line: %d, "
@@ -429,7 +435,7 @@ int fcfg_server_dao_del_config(FCFGMySQLContext *context, const char *env,
 static int fcfg_server_dao_store_rows(FCFGMySQLContext *context,
         MYSQL_STMT *stmt, FCFGConfigArray *array)
 {
-    MYSQL_BIND result_binds[6];
+    MYSQL_BIND result_binds[7];
     int result;
     int row_count;
     int bytes;
@@ -438,13 +444,14 @@ static int fcfg_server_dao_store_rows(FCFGMySQLContext *context,
         char value[FCFG_CONFIG_VALUE_SIZE];
         int64_t version;
         short status;
+        short type;
         unsigned long name_len;
         unsigned long value_len;
         int create_time;
         int update_time;
     } buffer;
-    my_bool is_null[6];
-    my_bool error[6];
+    my_bool is_null[7];
+    my_bool error[7];
     FCFGConfigEntry *current;
     FCFGConfigEntry *end;
 
@@ -463,32 +470,37 @@ static int fcfg_server_dao_store_rows(FCFGMySQLContext *context,
     result_binds[0].is_null = &is_null[0];
     result_binds[0].error = &error[0];
 
-    result_binds[1].buffer_type = MYSQL_TYPE_STRING;
-    result_binds[1].buffer = buffer.value;
-    result_binds[1].buffer_length = FCFG_CONFIG_VALUE_SIZE;
-    result_binds[1].length = &buffer.value_len;
+    result_binds[1].buffer_type = MYSQL_TYPE_SHORT;
+    result_binds[1].buffer = (char *)&buffer.type;
     result_binds[1].is_null = &is_null[1];
     result_binds[1].error = &error[1];
 
-    result_binds[2].buffer_type = MYSQL_TYPE_LONGLONG;
-    result_binds[2].buffer = (char *)&buffer.version;
+    result_binds[2].buffer_type = MYSQL_TYPE_STRING;
+    result_binds[2].buffer = buffer.value;
+    result_binds[2].buffer_length = FCFG_CONFIG_VALUE_SIZE;
+    result_binds[2].length = &buffer.value_len;
     result_binds[2].is_null = &is_null[2];
     result_binds[2].error = &error[2];
 
-    result_binds[3].buffer_type = MYSQL_TYPE_SHORT;
-    result_binds[3].buffer = (char *)&buffer.status;
+    result_binds[3].buffer_type = MYSQL_TYPE_LONGLONG;
+    result_binds[3].buffer = (char *)&buffer.version;
     result_binds[3].is_null = &is_null[3];
     result_binds[3].error = &error[3];
 
-    result_binds[4].buffer_type = MYSQL_TYPE_LONG;
-    result_binds[4].buffer = (char *)&buffer.create_time;
+    result_binds[4].buffer_type = MYSQL_TYPE_SHORT;
+    result_binds[4].buffer = (char *)&buffer.status;
     result_binds[4].is_null = &is_null[4];
     result_binds[4].error = &error[4];
 
     result_binds[5].buffer_type = MYSQL_TYPE_LONG;
-    result_binds[5].buffer = (char *)&buffer.update_time;
+    result_binds[5].buffer = (char *)&buffer.create_time;
     result_binds[5].is_null = &is_null[5];
     result_binds[5].error = &error[5];
+
+    result_binds[6].buffer_type = MYSQL_TYPE_LONG;
+    result_binds[6].buffer = (char *)&buffer.update_time;
+    result_binds[6].is_null = &is_null[6];
+    result_binds[6].error = &error[6];
 
     if (mysql_stmt_bind_result(stmt, result_binds) != 0) {
         logError("file: "__FILE__", line: %d, "
@@ -558,6 +570,7 @@ static int fcfg_server_dao_store_rows(FCFGMySQLContext *context,
         memcpy(current->value.str, buffer.value, buffer.value_len + 1);
         current->version = buffer.version;
         current->status = buffer.status;
+        current->type = buffer.type;
         current->create_time = buffer.create_time;
         current->update_time = buffer.update_time;
         current->name.len = buffer.name_len;

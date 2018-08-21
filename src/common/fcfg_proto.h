@@ -62,6 +62,7 @@ typedef struct fcfg_proto_push_config_header {
 typedef struct fcfg_proto_push_config_body_part {
     unsigned char status;
     unsigned char name_len;
+    unsigned char type;
     char value_len[4];
     char version[8];
     char create_time[4];  //unix timestamp
@@ -84,6 +85,7 @@ typedef struct fcfg_proto_admin_join_req {
 typedef struct fcfg_proto_set_config_req {
     unsigned char env_len;
     unsigned char name_len;
+    unsigned char type;
     char value_len[4];
     char env[0];
     //char *name;    //name = env + env_len

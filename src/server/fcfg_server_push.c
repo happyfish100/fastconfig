@@ -146,6 +146,8 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     FCFGProtoHeader *proto_header;
     FCFGProtoPushConfigHeader *header_part;
     FCFGProtoPushConfigBodyPart *body_part;
+    FCFGEnvPublisher *publisher;
+    char *env;
     int result;
     int start_offset;
     int record_size;
@@ -155,13 +157,15 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     task->length = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoPushConfigHeader);
 
     msg_queue = &((FCFGServerTaskArg *)task->arg)->msg_queue;
+    publisher = ((FCFGServerTaskArg *)task->arg)->publisher;
     config = msg_queue->config_array->rows + msg_queue->offset;
     record_size = CONFIG_RECORD_SIZE(config);
     expect_size = task->length + record_size;
+    env = publisher != NULL ? publisher->env : "";
 
-    logInfo("file: "__FILE__", line: %d, client ip: %s, "
+    logDebug("file: "__FILE__", line: %d, client ip: %s, env: %s, "
             "config offset: %d, total count: %d", __LINE__,
-            task->client_ip, msg_queue->offset,
+            task->client_ip, env, msg_queue->offset,
             msg_queue->config_array->count);
 
     if (expect_size > task->size) {
@@ -181,6 +185,7 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
 
         body_part = (FCFGProtoPushConfigBodyPart *)(task->data + task->length);
         body_part->status = config->status;
+        body_part->type = config->type;
         body_part->name_len = config->name.len;
         int2buff(config->value.len, body_part->value_len);
         long2buff(config->version, body_part->version);
@@ -200,10 +205,10 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
     short2buff(config_count, header_part->count);
 
-    logInfo("file: "__FILE__", line: %d, client ip: %s, "
+    logDebug("file: "__FILE__", line: %d, client ip: %s, env: %s, "
             "send %d configs, config offset: %d, total count: %d, "
             "agent_cfg_version: %"PRId64", task length: %d",
-            __LINE__, task->client_ip, config_count,
+            __LINE__, task->client_ip, env, config_count,
             msg_queue->offset, msg_queue->config_array->count,
             msg_queue->agent_cfg_version, task->length);
 

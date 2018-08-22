@@ -116,9 +116,9 @@ static int fcfg_proto_deal_agent_join(struct fast_task_info *task,
         result = fcfg_server_add_config_push_event(task);
     }
 
-    logInfo("file: "__FILE__", line: %d, client ip: %s, "
+    logDebug("file: "__FILE__", line: %d, client ip: %s, env: %s, "
             "agent_cfg_version: %"PRId64", center_cfg_version: %"PRId64,
-            __LINE__, task->client_ip, agent_cfg_version, center_cfg_version);
+            __LINE__, task->client_ip, env, agent_cfg_version, center_cfg_version);
 
     ((FCFGServerTaskArg *)task->arg)->msg_queue.agent_cfg_version = agent_cfg_version;
     join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
@@ -342,8 +342,8 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
         return EINVAL;
     }
 
-    if (!(type == FCFG_CONFIG_TYPE_STRING || type == FCFG_CONFIG_TYPE_LIST ||
-                type == FCFG_CONFIG_TYPE_MAP))
+    if (!(type == FCFG_CONFIG_TYPE_NONE || type == FCFG_CONFIG_TYPE_STRING ||
+                type == FCFG_CONFIG_TYPE_LIST || type == FCFG_CONFIG_TYPE_MAP))
     {
         response->error.length = sprintf(response->error.message,
                 "invalid type: %d", type);
@@ -378,6 +378,9 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
 
     value.str = set_config_req->env + env_len + name_len;
     *(value.str + value.len) = '\0';
+    if (type == FCFG_CONFIG_TYPE_NONE) {
+        type = FCFG_CONFIG_TYPE_STRING;   //TODO
+    }
 
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
     result = fcfg_server_dao_set_config(mysql_context, env, name, type, value.str);
@@ -877,7 +880,7 @@ static int fcfg_server_send_active_test(struct fast_task_info *task)
 {
     FCFGProtoHeader *proto_header;
 
-    logInfo("file: "__FILE__", line: %d, "
+    logDebug("file: "__FILE__", line: %d, "
             "client ip: %s, send_active_test",
             __LINE__, task->client_ip);
 
@@ -909,7 +912,7 @@ int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
 
         task_version = __sync_add_and_fetch(&task_arg->task_version, 0);
         if (event->task_version != task_version) {
-            logInfo("file: "__FILE__", line: %d, client ip: %s, "
+            logWarning("file: "__FILE__", line: %d, client ip: %s, "
                     "task version changed, current task version: %"PRId64", "
                     "task version in event: %"PRId64, __LINE__,
                     event->task->client_ip, task_version, event->task_version);

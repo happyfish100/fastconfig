@@ -26,7 +26,6 @@ static struct fast_mblock_man event_allocator;
 
 static int fcfg_server_cfg_free_config_array(void *args)
 {
-    logInfo("free config array: %p", args);
     fcfg_server_dao_free_config_array((FCFGConfigArray *)args);
     free(args);
     return 0;
@@ -201,7 +200,7 @@ static int fcfg_server_cfg_reload_by_env_incr(struct fcfg_mysql_context *context
         return result;
     }
 
-    if (publisher->current_version >= max_version) {
+    if (publisher->current_version == max_version) {
         return 0;
     }
 
@@ -232,14 +231,12 @@ static int fcfg_server_cfg_reload_by_env_all(struct fcfg_mysql_context *context,
         FCFGEnvPublisher *publisher)
 {
     int result;
-    int64_t old_version;
 
     publisher->config_stat.last_reload_all_time = g_current_time;
     if ((result=fcfg_server_cfg_reload_config_all(context, publisher)) != 0) {
         return result;
     }
 
-    old_version = publisher->current_version;
     if (publisher->config_array->count > 0) {
         publisher->current_version = publisher->config_array->rows
             [publisher->config_array->count - 1].version;
@@ -252,10 +249,7 @@ static int fcfg_server_cfg_reload_by_env_all(struct fcfg_mysql_context *context,
             __LINE__, publisher->env, publisher->config_array->count,
             publisher->current_version);
 
-    if (publisher->current_version > old_version) {
-        result = fcfg_server_cfg_notify(publisher);
-    }
-    return result;
+    return fcfg_server_cfg_notify(publisher);
 }
 
 int fcfg_server_cfg_reload(struct fcfg_mysql_context *context)

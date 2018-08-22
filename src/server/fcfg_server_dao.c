@@ -293,7 +293,8 @@ int fcfg_server_dao_set_config(FCFGMySQLContext *context, const char *env,
             && array.count == 1)
     {
         bool same;
-        same = (strcmp(value, array.rows[0].value.str) == 0);
+        same = (type == array.rows[0].type) &&
+            (strcmp(value, array.rows[0].value.str) == 0);
         fcfg_server_dao_free_config_array(&array);
         if (same) {
             return 0;

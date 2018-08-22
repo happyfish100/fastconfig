@@ -86,8 +86,9 @@ static void _print_push_config (int status, struct shmcache_key_info *key,
 {
     if (status == FCFG_CONFIG_STATUS_NORMAL) {
         linfo("push conifg. status: %d, version: %"PRId64", key: %.*s, "
-                "value: %.*s",
-                status, max_version, key->length, key->data, value->length, value->data);
+                "value: %.*s, options: %d",
+                status, max_version, key->length, key->data,
+                value->length, value->data, value->options);
     } else {
         linfo("push conifg. status: %d, version: %"PRId64", key: %.*s",
                 status, max_version, key->length, key->data);

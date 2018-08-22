@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include <ctype.h>
 #include "fcfg/fcfg_admin.h"
 #include "fastcommon/logger.h"
 
@@ -7,6 +8,7 @@ char *config_file = NULL;
 char *config_name = NULL;
 char *env = NULL;
 char *config_value = NULL;
+char type_char  = '\0';
 unsigned char type = FCFG_CONFIG_TYPE_NONE;
 static void usage(char *program)
 {
@@ -16,6 +18,8 @@ static void usage(char *program)
             "\t -e <env>\n"
             "\t -n <config-name>\n"
             "\t -v <config-value>\n"
+            "\t -t <value-type. s: string, l: list, m: map. if not set, "
+            "recognize automatically>\n"
             "\n", program);
 }
 static void parse_args(int argc, char **argv)
@@ -39,7 +43,7 @@ static void parse_args(int argc, char **argv)
                 env = optarg;
                 break;
             case 't':
-                type = (unsigned char )atoi(optarg);
+                type_char = *optarg;
                 break;
             case 'h':
             default:
@@ -75,6 +79,18 @@ int main (int argc, char **argv)
     if (ret) {
         goto END;
     }
+
+    type = FCFG_CONFIG_TYPE_NONE;
+    if (type_char) {
+        if (tolower(type_char) == 'l') {
+            type = FCFG_CONFIG_TYPE_LIST;
+        } else if (tolower(type_char) == 'm') {
+            type = FCFG_CONFIG_TYPE_MAP;
+        } else if (tolower(type_char) == 's') {
+            type = FCFG_CONFIG_TYPE_STRING;
+        }
+    }
+
     ret = fcfg_admin_config_set(&fcfg_context, env, config_name, config_value,
             type);
     if (ret == 0) {

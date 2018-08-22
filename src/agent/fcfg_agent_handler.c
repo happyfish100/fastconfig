@@ -128,7 +128,7 @@ static int fcfg_set_push_config(const char *body_data,
         if (fcfg_push_body_data.status == FCFG_CONFIG_STATUS_NORMAL) {
             value.data = fcfg_push_body_pro->name + fcfg_push_body_data.name_len;
             value.length = fcfg_push_body_data.value_len;
-            value.options = SHMCACHE_SERIALIZER_STRING;
+            value.options = fcfg_push_body_data.type;
             value.expires = SHMCACHE_NEVER_EXPIRED;
             ret = shmcache_set_ex(&g_agent_global_vars.shm_context, &key, &value);
         } else {

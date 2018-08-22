@@ -14,6 +14,7 @@ typedef struct tagFCFGPushConfigHeader {
 typedef struct tagFCFGPushConfigBodyPart {
     unsigned char status;
     unsigned char name_len;
+    unsigned char type;
     int value_len;
     int64_t version;
     int create_time;

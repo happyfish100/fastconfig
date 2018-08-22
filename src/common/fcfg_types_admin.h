@@ -30,6 +30,8 @@
 #define FCFG_SERVER_DEFAULT_INNER_PORT  20000
 #define FCFG_SERVER_DEFAULT_OUTER_PORT  20000
 
+extern char *fcfg_config_type_string[6];
+
 typedef struct fcfg_config_entry {
     string_t name;
     string_t value;

@@ -7,6 +7,7 @@ char *config_file = NULL;
 char *config_name = NULL;
 char *env = NULL;
 char *config_value = NULL;
+unsigned char type = FCFG_CONFIG_TYPE_NONE;
 static void usage(char *program)
 {
     fprintf(stderr, "Usage: %s options, the options as:\n"
@@ -22,7 +23,7 @@ static void parse_args(int argc, char **argv)
     int ch;
     int found = 0;
 
-    while ((ch = getopt(argc, argv, "hc:e:n:v:")) != -1) {
+    while ((ch = getopt(argc, argv, "hc:e:n:v:t:")) != -1) {
         found = 1;
         switch (ch) {
             case 'c':
@@ -36,6 +37,9 @@ static void parse_args(int argc, char **argv)
                 break;
             case 'e':
                 env = optarg;
+                break;
+            case 't':
+                type = (unsigned char )atoi(optarg);
                 break;
             case 'h':
             default:
@@ -71,7 +75,8 @@ int main (int argc, char **argv)
     if (ret) {
         goto END;
     }
-    ret = fcfg_admin_config_set(&fcfg_context, env, config_name, config_value);
+    ret = fcfg_admin_config_set(&fcfg_context, env, config_name, config_value,
+            type);
     if (ret == 0) {
         fprintf(stderr, "set config success\n");
     }

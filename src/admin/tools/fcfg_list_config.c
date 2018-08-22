@@ -73,7 +73,7 @@ int main (int argc, char **argv)
     }
     ret = fcfg_admin_config_list(&fcfg_context, env, config_name, limit, &array);
     if (ret == 0) {
-        fcfg_print_config_array(&array);
+        fcfg_print_config_array(&array, 0);
     }
 
 END:

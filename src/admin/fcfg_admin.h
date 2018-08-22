@@ -24,7 +24,8 @@ int fcfg_admin_init_from_file (struct fcfg_context *fcfg_context,
 int fcfg_admin_destroy (struct fcfg_context *fcfg_context);
 
 int fcfg_admin_config_set (struct fcfg_context *fcfg_context,
-        const char *env, const char *config_name, const char *config_value);    
+        const char *env, const char *config_name, const char *config_value,
+        const unsigned char type);    
 int fcfg_admin_config_get (struct fcfg_context *fcfg_context,
         const char *env, const char *config_name, FCFGConfigArray *array);
 int fcfg_admin_config_del (struct fcfg_context *fcfg_context,
@@ -39,7 +40,7 @@ int fcfg_admin_env_del (struct fcfg_context *fcfg_context, const char *env);
 int fcfg_admin_env_list (struct fcfg_context *fcfg_context,
         FCFGEnvArray *array);
 void fcfg_print_env_array (FCFGEnvArray *array);
-void fcfg_print_config_array (FCFGConfigArray *array);
+void fcfg_print_config_array (FCFGConfigArray *array, int print_detail);
 void fcfg_free_env_info_array(FCFGEnvArray *array);
 void fcfg_free_config_info_array(FCFGConfigArray *array);
 

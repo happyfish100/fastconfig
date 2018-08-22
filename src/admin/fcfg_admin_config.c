@@ -16,9 +16,18 @@
 #include "fcfg_admin_func.h"
 #include "fcfg_types.h"
 
+char *fcfg_config_type_string[6] = {
+    "",
+    "string",
+    "",
+    "list",
+    "",
+    "map",
+};
+
 void fcfg_set_admin_set_config(char *buff,const char *env,
         const char *config_name, const char *config_value,
-        int *body_len)
+        const unsigned char type, int *body_len)
 {
     FCFGProtoSetConfigReq *set_config_req = (FCFGProtoSetConfigReq *)buff;
     unsigned char env_len = strlen(env);
@@ -27,6 +36,7 @@ void fcfg_set_admin_set_config(char *buff,const char *env,
 
     set_config_req->env_len = env_len;
     set_config_req->name_len = name_len;
+    set_config_req->type = type;
     int2buff(value_len, set_config_req->value_len);
     memcpy(set_config_req->env, env,
            env_len);
@@ -40,7 +50,8 @@ void fcfg_set_admin_set_config(char *buff,const char *env,
 }
 
 int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
-        const char *env, const char *config_name, const char *config_value)
+        const char *env, const char *config_name, const char *config_value,
+        const unsigned char type)
 {
     int ret;
     char buff[64 + FCFG_CONFIG_ENV_SIZE + FCFG_CONFIG_NAME_SIZE + FCFG_CONFIG_VALUE_SIZE];
@@ -53,7 +64,7 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
     join_conn = fcfg_context->join_conn + fcfg_context->join_index;
     fcfg_header_proto = (FCFGProtoHeader *)buff;
     fcfg_set_admin_set_config(buff + sizeof(FCFGProtoHeader), env, config_name,
-            config_value, &body_len);
+            config_value, type, &body_len);
     fcfg_set_admin_header(fcfg_header_proto, FCFG_PROTO_SET_CONFIG_REQ, body_len);
     size = sizeof(FCFGProtoHeader) + body_len;
     ret = send_and_recv_response_header(join_conn, buff, size, &resp_info,
@@ -76,12 +87,14 @@ int fcfg_admin_set_config (struct fcfg_context *fcfg_context,
 }
 
 int fcfg_admin_config_set (struct fcfg_context *fcfg_context,
-        const char *env, const char *config_name, const char *config_value)
+        const char *env, const char *config_name, const char *config_value,
+        const unsigned char type)
 {
     int ret;
     ret = fcfg_admin_check_arg(env, config_name, config_value);
     if (ret == 0) {
-        ret = fcfg_admin_set_config(fcfg_context, env, config_name, config_value);
+        ret = fcfg_admin_set_config(fcfg_context, env, config_name,
+                config_value, type);
     }
 
     return ret;
@@ -432,7 +445,7 @@ int fcfg_admin_config_list (struct fcfg_context *fcfg_context,
 
     return ret;
 }
-void fcfg_print_config_array (FCFGConfigArray *array)
+void fcfg_print_config_array (FCFGConfigArray *array, int print_detail)
 {
     int i;
 
@@ -441,6 +454,22 @@ void fcfg_print_config_array (FCFGConfigArray *array)
                 "%s = %s\n",
                 (array->rows + i)->name.str,
                 (array->rows + i)->value.str);
+        if (print_detail) {
+            char create_time_buff[32];
+            char update_time_buff[32];
+            strftime(create_time_buff, sizeof(create_time_buff),
+                    "%Y-%m-%d %H:%M:%S",
+                    localtime(&((array->rows +i)->create_time)));
+            strftime(update_time_buff, sizeof(update_time_buff),
+                    "%Y-%m-%d %H:%M:%S",
+                    localtime(&((array->rows + i)->update_time)));
+            fprintf(stderr,
+                    "version: %"PRId64"\n"
+                    "type: %s\ncreate time: %s\nupdate time: %s\n",
+                    (array->rows + i)->version,
+                    fcfg_config_type_string[(array->rows + i)->type],
+                    create_time_buff, update_time_buff);
+        }
     }
 }
 

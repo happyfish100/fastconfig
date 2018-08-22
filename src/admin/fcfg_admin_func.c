@@ -253,6 +253,7 @@ int fcfg_admin_config_set_entry (FCFGProtoGetConfigResp *get_config_resp,
     int size;
     rows->status = get_config_resp->status;
     rows->name.len = get_config_resp->name_len;
+    rows->type = get_config_resp->type;
     rows->value.len = buff2int(get_config_resp->value_len);
     rows->version = buff2long(get_config_resp->version);
     rows->create_time = buff2int(get_config_resp->create_time);

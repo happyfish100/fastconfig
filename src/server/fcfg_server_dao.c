@@ -578,9 +578,9 @@ static int fcfg_server_dao_store_rows(FCFGMySQLContext *context,
         current->value.len = buffer.value_len;
 
         /*
-        logInfo("name: %.*s, value: %.*s, version: %"PRId64", status: %d, "
+        logInfo("name: %.*s, type: %d, value: %.*s, version: %"PRId64", status: %d, "
                 "create_time: %ld, update_time: %ld",
-                current->name.len, current->name.str,
+                current->name.len, current->name.str, current->type,
                 current->value.len, current->value.str,
                 current->version, current->status,
                 (long)current->create_time, (long)current->update_time);
@@ -723,6 +723,7 @@ int fcfg_server_dao_copy_config_array(FCFGConfigArray *src, FCFGConfigArray *des
     for (cur=src->rows; cur<end; cur++, out++) {
         out->name.len = cur->name.len;
         out->value.len = cur->value.len;
+        out->type = cur->type;
         out->version = cur->version;
         out->status = cur->status;
         out->create_time = cur->create_time;

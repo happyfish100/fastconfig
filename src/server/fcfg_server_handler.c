@@ -16,6 +16,7 @@
 #include "fastcommon/pthread_func.h"
 #include "fastcommon/sched_thread.h"
 #include "fastcommon/ioevent_loop.h"
+#include "fastcommon/json_parser.h"
 #include "sf/sf_util.h"
 #include "sf/sf_func.h"
 #include "sf/sf_nio.h"
@@ -313,6 +314,9 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     short type;
     int data_body_len;
     string_t value;
+    string_t new_value;
+    json_array_t array;
+    json_map_t map;
     int result;
 
     if ((result=FCFG_PROTO_CHECK_BODY_LEN(task, request, response,
@@ -379,14 +383,59 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     value.str = set_config_req->env + env_len + name_len;
     *(value.str + value.len) = '\0';
     if (type == FCFG_CONFIG_TYPE_NONE) {
-        type = FCFG_CONFIG_TYPE_STRING;   //TODO
+        int json_type;
+        json_type = detect_json_type(&value);
+        switch (json_type) {
+            case FC_JSON_TYPE_STRING:
+                type = FCFG_CONFIG_TYPE_STRING;
+                break;
+            case FC_JSON_TYPE_ARRAY:
+                type = FCFG_CONFIG_TYPE_LIST;
+                break;
+            case FC_JSON_TYPE_MAP:
+                type = FCFG_CONFIG_TYPE_MAP;
+                break;
+        }
+    }
+
+    switch (type) {
+        case FCFG_CONFIG_TYPE_STRING:
+            result = 0;
+            new_value = value;
+            break;
+        case FCFG_CONFIG_TYPE_LIST:
+            result = decode_json_array(&value, &array,
+                    response->error.message, sizeof(response->error.message));
+            if (result == 0) {
+                result = encode_json_array(&array, &new_value,
+                        response->error.message, sizeof(response->error.message));
+                free_json_array(&array);
+            }
+            break;
+        case FCFG_CONFIG_TYPE_MAP:
+            result = decode_json_map(&value, &map,
+                    response->error.message, sizeof(response->error.message));
+            if (result == 0) {
+                result = encode_json_map(&map, &new_value,
+                        response->error.message, sizeof(response->error.message));
+                free_json_map(&map);
+            }
+            break;
+    }
+
+    if (result != 0) {
+        return result;
     }
 
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
-    result = fcfg_server_dao_set_config(mysql_context, env, name, type, value.str);
+    result = fcfg_server_dao_set_config(mysql_context, env, name,
+            type, new_value.str);
     if (result != 0) {
         response->error.length = sprintf(response->error.message,
                 "internal server error");
+    }
+    if (new_value.str != value.str) {
+        free(new_value.str);
     }
     return result;
 }

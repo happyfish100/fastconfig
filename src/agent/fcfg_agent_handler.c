@@ -96,6 +96,22 @@ static void _print_push_config (int status, struct shmcache_key_info *key,
 
     return;
 }
+static int _get_options_from_type(unsigned char type)
+{
+    int options;
+
+    if (type == FCFG_CONFIG_TYPE_STRING) {
+        options = SHMCACHE_SERIALIZER_STRING;
+    } else if (type == FCFG_CONFIG_TYPE_LIST) {
+        options = SHMCACHE_SERIALIZER_LIST;
+    } else if (type == FCFG_CONFIG_TYPE_MAP) {
+        options = SHMCACHE_SERIALIZER_MAP;
+    } else {
+        options = SHMCACHE_SERIALIZER_STRING;
+    }
+
+    return options;
+}
 static int fcfg_set_push_config(const char *body_data,
         const int body_len, int64_t *max_version)
 {
@@ -129,7 +145,7 @@ static int fcfg_set_push_config(const char *body_data,
         if (fcfg_push_body_data.status == FCFG_CONFIG_STATUS_NORMAL) {
             value.data = fcfg_push_body_pro->name + fcfg_push_body_data.name_len;
             value.length = fcfg_push_body_data.value_len;
-            value.options = fcfg_push_body_data.type;
+            value.options = _get_options_from_type(fcfg_push_body_data.type);
             value.expires = SHMCACHE_NEVER_EXPIRED;
             ret = shmcache_set_ex(&g_agent_global_vars.shm_context, &key, &value);
         } else {

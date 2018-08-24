@@ -424,6 +424,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     }
 
     if (result != 0) {
+        response->error.length = strlen(response->error.message);
         return result;
     }
 

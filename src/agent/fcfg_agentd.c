@@ -40,7 +40,7 @@ static void usage(char *program)
 
 int main (int argc, char **argv)
 {
-    char g_pid_filename[MAX_PATH_SIZE];
+    char g_pid_filename[MAX_PATH_SIZE + 32];
     pthread_t schedule_tid;
     int wait_count = 0;
     char *action;

@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 {
     char *config_filename;
     char *action;
-    char g_pid_filename[MAX_PATH_SIZE];
+    char g_pid_filename[MAX_PATH_SIZE + 32];
     pthread_t schedule_tid;
     int wait_count;
     bool stop;

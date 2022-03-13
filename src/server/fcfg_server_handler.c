@@ -753,7 +753,7 @@ static int fcfg_proto_deal_push_config_resp(struct fast_task_info *task,
     return fcfg_server_push_configs(task);
 }
 
-int fcfg_server_deal_task(struct fast_task_info *task)
+int fcfg_server_deal_task(struct fast_task_info *task, const int stage)
 {
     FCFGProtoHeader *proto_header;
     FCFGServerTaskArg *task_arg;
@@ -992,7 +992,7 @@ int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
             g_current_time - server_context->mysql_context.last_ping_time >=
             g_server_global_vars.db_config.ping_interval)
     {
-        int thread_index = thread_data - g_sf_global_vars.thread_data;
+        int thread_index = SF_G_THREAD_INDEX(thread_data);
         fcfg_server_dao_ping(&server_context->mysql_context, thread_index);
         server_context->mysql_context.last_ping_time = g_current_time;
     }

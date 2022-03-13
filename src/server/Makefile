@@ -6,8 +6,9 @@ LIB_PATH =  -lfastcommon -lserverframe $(shell mysql_config --libs)
 TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 
-ALL_OBJS = ../common/fcfg_proto.o fcfg_server_func.o fcfg_server_handler.o fcfg_server_global.o \
-           fcfg_server_dao.o fcfg_server_env.o fcfg_server_cfg.o fcfg_server_push.o
+ALL_OBJS = ../common/fcfg_proto.o ../common/fcfg_global.o fcfg_server_func.o \
+           fcfg_server_handler.o fcfg_server_global.o fcfg_server_dao.o \
+           fcfg_server_env.o fcfg_server_cfg.o fcfg_server_push.o
 
 ALL_PRGS = fcfg_serverd
 

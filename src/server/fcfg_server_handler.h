@@ -14,7 +14,7 @@ extern "C" {
 
 int fcfg_server_handler_init();
 int fcfg_server_handler_destroy();
-int fcfg_server_deal_task(struct fast_task_info *task);
+int fcfg_server_deal_task(struct fast_task_info *task, const int stage);
 void fcfg_server_task_finish_cleanup(struct fast_task_info *task);
 int fcfg_server_recv_timeout_callback(struct fast_task_info *task);
 void *fcfg_server_alloc_thread_extra_data(const int thread_index);

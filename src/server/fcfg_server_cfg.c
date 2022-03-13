@@ -360,7 +360,8 @@ int fcfg_server_cfg_init()
     }
 
     if ((result=fast_mblock_init_ex(&event_allocator,
-                    sizeof(FCFGServerPushEvent), 10240, NULL, true)) != 0)
+                    sizeof(FCFGServerPushEvent), 10240, 0,
+                    NULL, NULL, true)) != 0)
     {
         return result;
     }

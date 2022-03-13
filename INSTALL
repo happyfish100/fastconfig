@@ -17,6 +17,7 @@
 #step 4. install mysql client library
    * ubuntu OS: sudo apt-get install libmysqlclient-dev 
    * CentOS: sudo yum install mysql-devel
+          or sudo yum install mysql-community-devel
           or sudo yum install rh-mysql57-mysql-devel
    * Mac OS: brew install mysql-client
 

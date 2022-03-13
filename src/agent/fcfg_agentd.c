@@ -19,6 +19,7 @@
 #include "fastcommon/sched_thread.h"
 #include "sf/sf_util.h"
 #include "common/fcfg_proto.h"
+#include "common/fcfg_global.h"
 #include "fastcommon/sockopt.h"
 #include "fcfg_agent_handler.h"
 #include "fcfg_agent_func.h"
@@ -58,14 +59,16 @@ int main (int argc, char **argv)
     log_init2();
     log_set_use_file_write_lock(true);
 
-    r = get_base_path_from_conf_file(g_agent_global_vars.config_file, g_agent_global_vars.base_path,
+    r = get_base_path_from_conf_file(g_agent_global_vars.
+            config_file, g_agent_global_vars.base_path,
             sizeof(g_agent_global_vars.base_path));
 
     gofailif (r, "get base path fail");
     snprintf(g_pid_filename, sizeof(g_pid_filename),
             "%s/fcfg_agent.pid", g_agent_global_vars.base_path);
 
-    sf_parse_daemon_mode_and_action(argc, argv, &daemon_mode, &action);
+    sf_parse_daemon_mode_and_action(argc, argv, &g_fcfg_global_vars.
+            version, &daemon_mode, &action);
     r = process_action(g_pid_filename, action, &stop);
     if (r == EINVAL) {
         usage(argv[0]);

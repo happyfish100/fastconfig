@@ -23,7 +23,7 @@
 #include "sf/sf_service.h"
 #include "sf/sf_util.h"
 #include "common/fcfg_proto.h"
-#include "common/fcfg_types.h"
+#include "common/fcfg_global.h"
 #include "fcfg_server_types.h"
 #include "fcfg_server_func.h"
 #include "fcfg_server_handler.h"
@@ -52,14 +52,15 @@ int main(int argc, char *argv[])
     config_filename = argv[1];
     log_init2();
 
-    r = get_base_path_from_conf_file(config_filename, g_sf_global_vars.base_path,
-                                     sizeof(g_sf_global_vars.base_path));
+    r = get_base_path_from_conf_file(config_filename, SF_G_BASE_PATH_STR,
+                                     sizeof(SF_G_BASE_PATH_STR));
     gofailif(r, "base path error");
 
     snprintf(g_pid_filename, sizeof(g_pid_filename), 
-             "%s/fcfg_serverd.pid", g_sf_global_vars.base_path);
+             "%s/fcfg_serverd.pid", SF_G_BASE_PATH_STR);
 
-    sf_parse_daemon_mode_and_action(argc, argv, &daemon_mode, &action);
+    sf_parse_daemon_mode_and_action(argc, argv, &g_fcfg_global_vars.
+            version, &daemon_mode, &action);
     r = process_action(g_pid_filename, action, &stop);
     if (r == EINVAL) {
         sf_usage(argv[0]);
@@ -93,11 +94,11 @@ int main(int argc, char *argv[])
 
     fcfg_proto_init();
 
-    r = sf_service_init(fcfg_server_alloc_thread_extra_data,
-            fcfg_server_thread_loop,
-            NULL, fcfg_proto_set_body_length, fcfg_server_deal_task,
-            fcfg_server_task_finish_cleanup, fcfg_server_recv_timeout_callback,
-            100, sizeof(FCFGProtoHeader), sizeof(FCFGServerTaskArg));
+    r = sf_service_init("service", fcfg_server_alloc_thread_extra_data,
+            fcfg_server_thread_loop, NULL, fcfg_proto_set_body_length,
+            fcfg_server_deal_task, fcfg_server_task_finish_cleanup,
+            fcfg_server_recv_timeout_callback, 100, sizeof(FCFGProtoHeader),
+            sizeof(FCFGServerTaskArg));
     gofailif(r,"service init error");
     sf_set_remove_from_ready_list(false);
 
@@ -106,7 +107,7 @@ int main(int argc, char *argv[])
         pthread_kill(schedule_tid, SIGINT);
     }
     wait_count = 0;
-    while ((g_worker_thread_count != 0) || g_schedule_flag) {
+    while ((SF_G_ALIVE_THREAD_COUNT != 0) || g_schedule_flag) {
         usleep(10000);
         if (++wait_count > 1000) {
             lwarning("waiting timeout, exit!");

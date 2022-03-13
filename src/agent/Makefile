@@ -7,7 +7,8 @@ LIB_PATH =  -L/usr/local/lib -lfastcommon -lserverframe -lshmcache -lpthread \
 TARGET_PATH = /usr/bin
 CONFIG_PATH = $(TARGET_CONF_PATH)
 
-ALL_OBJS = ../common/fcfg_proto.o fcfg_agent_func.o fcfg_agent_handler.o fcfg_agent_global.o
+ALL_OBJS = ../common/fcfg_proto.o ../common/fcfg_global.o fcfg_agent_func.o \
+           fcfg_agent_handler.o fcfg_agent_global.o
 
 ALL_PRGS = fcfg_agentd
 

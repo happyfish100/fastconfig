@@ -8,6 +8,7 @@
 #include "fastcommon/fast_task_queue.h"
 #include "fastcommon/fast_mblock.h"
 #include "fastcommon/fc_list.h"
+#include "fastcommon/json_parser.h"
 #include "fcfg_server_dao.h"
 
 #define FCFG_SERVER_DEFAULT_RELOAD_INTERVAL       500
@@ -23,8 +24,12 @@
 #define FCFG_SERVER_TASK_WAITING_RESP (FCFG_SERVER_TASK_WAITING_PUSH_RESP | \
         FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP)
 
+
+#define SERVER_CTX      ((FCFGServerContext *)task->thread_data->arg)
+
 typedef struct fcfg_server_context {
     FCFGMySQLContext mysql_context;
+    fc_json_context_t json_ctx;
     struct common_blocked_queue push_queue;
 } FCFGServerContext;
 

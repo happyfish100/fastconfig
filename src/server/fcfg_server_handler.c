@@ -315,8 +315,9 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     int data_body_len;
     string_t value;
     string_t new_value;
-    json_array_t array;
-    json_map_t map;
+    const fc_json_array_t *array;
+    const fc_json_map_t *map;
+    BufferInfo buffer;
     int result;
 
     if ((result=FCFG_PROTO_CHECK_BODY_LEN(task, request, response,
@@ -327,7 +328,8 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
         return result;
     }
 
-    set_config_req = (FCFGProtoSetConfigReq *)(task->data + sizeof(FCFGProtoHeader));
+    set_config_req = (FCFGProtoSetConfigReq *)(
+            task->data + sizeof(FCFGProtoHeader));
 
     env_len = set_config_req->env_len;
     name_len = set_config_req->name_len;
@@ -377,6 +379,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
         return ENOENT;
     }
 
+    memset(&buffer, 0, sizeof(buffer));
     memcpy(name, set_config_req->env + env_len, name_len);
     *(name + name_len) = '\0';
 
@@ -384,7 +387,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     *(value.str + value.len) = '\0';
     if (type == FCFG_CONFIG_TYPE_NONE) {
         int json_type;
-        json_type = detect_json_type(&value);
+        json_type = fc_detect_json_type(&value);
         switch (json_type) {
             case FC_JSON_TYPE_STRING:
                 type = FCFG_CONFIG_TYPE_STRING;
@@ -395,6 +398,10 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
             case FC_JSON_TYPE_MAP:
                 type = FCFG_CONFIG_TYPE_MAP;
                 break;
+            default:
+                response->error.length = sprintf(response->error.message,
+                        "unkown json type: %d", json_type);
+                return EINVAL;
         }
     }
 
@@ -404,40 +411,62 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
             new_value = value;
             break;
         case FCFG_CONFIG_TYPE_LIST:
-            result = decode_json_array(&value, &array,
-                    response->error.message, sizeof(response->error.message));
-            if (result == 0) {
-                result = encode_json_array(&array, &new_value,
-                        response->error.message, sizeof(response->error.message));
-                free_json_array(&array);
+            if ((array=fc_decode_json_array(&SERVER_CTX->
+                            json_ctx, &value)) != NULL)
+            {
+                result = fc_encode_json_array_ex(&SERVER_CTX->json_ctx,
+                        array->elements, array->count, &buffer);
+                if (result == 0) {
+                    new_value.str = buffer.buff;
+                    new_value.len = buffer.length;
+                }
+            } else {
+                result = fc_json_parser_get_error_no(&SERVER_CTX->json_ctx);
             }
+
+            if (result != 0) {
+                response->error.length = snprintf(response->error.message,
+                        sizeof(response->error.message),
+                        "%s", fc_json_parser_get_error_info(
+                            &SERVER_CTX->json_ctx)->str);
+                return result;
+            }
+
             break;
         case FCFG_CONFIG_TYPE_MAP:
-            result = decode_json_map(&value, &map,
-                    response->error.message, sizeof(response->error.message));
-            if (result == 0) {
-                result = encode_json_map(&map, &new_value,
-                        response->error.message, sizeof(response->error.message));
-                free_json_map(&map);
+            if ((map=fc_decode_json_map(&SERVER_CTX->
+                            json_ctx, &value)) != NULL)
+            {
+                result = fc_encode_json_map_ex(&SERVER_CTX->json_ctx,
+                        map->elements, map->count, &buffer);
+                if (result == 0) {
+                    new_value.str = buffer.buff;
+                    new_value.len = buffer.length;
+                }
+            } else {
+                result = fc_json_parser_get_error_no(&SERVER_CTX->json_ctx);
             }
+
+            if (result != 0) {
+                response->error.length = snprintf(response->error.message,
+                        sizeof(response->error.message),
+                        "%s", fc_json_parser_get_error_info(
+                            &SERVER_CTX->json_ctx)->str);
+                return result;
+            }
+
             break;
     }
 
-    if (result != 0) {
-        response->error.length = strlen(response->error.message);
-        return result;
-    }
-
-    mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
+    mysql_context = &SERVER_CTX->mysql_context;
     result = fcfg_server_dao_set_config(mysql_context, env, name,
             type, new_value.str);
     if (result != 0) {
         response->error.length = sprintf(response->error.message,
                 "internal server error");
     }
-    if (new_value.str != value.str) {
-        free(new_value.str);
-    }
+
+    fc_free_buffer(&buffer);
     return result;
 }
 
@@ -921,6 +950,7 @@ void *fcfg_server_alloc_thread_extra_data(const int thread_index)
     }
 
     memset(thread_extra_data, 0, sizeof(FCFGServerContext));
+    fc_init_json_context(&thread_extra_data->json_ctx);
     fcfg_server_dao_init(&thread_extra_data->mysql_context);
     common_blocked_queue_init_ex(&thread_extra_data->push_queue, 4096);
     return thread_extra_data;

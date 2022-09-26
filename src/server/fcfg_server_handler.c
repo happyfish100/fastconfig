@@ -406,10 +406,6 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     }
 
     switch (type) {
-        case FCFG_CONFIG_TYPE_STRING:
-            result = 0;
-            new_value = value;
-            break;
         case FCFG_CONFIG_TYPE_LIST:
             if ((array=fc_decode_json_array(&SERVER_CTX->
                             json_ctx, &value)) != NULL)
@@ -419,9 +415,12 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
                 if (result == 0) {
                     new_value.str = buffer.buff;
                     new_value.len = buffer.length;
+                } else {
+                    new_value = value;
                 }
             } else {
                 result = fc_json_parser_get_error_no(&SERVER_CTX->json_ctx);
+                new_value = value;
             }
 
             if (result != 0) {
@@ -442,9 +441,12 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
                 if (result == 0) {
                     new_value.str = buffer.buff;
                     new_value.len = buffer.length;
+                } else {
+                    new_value = value;
                 }
             } else {
                 result = fc_json_parser_get_error_no(&SERVER_CTX->json_ctx);
+                new_value = value;
             }
 
             if (result != 0) {
@@ -455,6 +457,10 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
                 return result;
             }
 
+            break;
+	default:
+            result = 0;
+            new_value = value;
             break;
     }
 

@@ -27,6 +27,14 @@
 *.out
 src/server/fcfg_serverd
 src/agent/fcfg_agentd
+src/admin/tools/fcfg_add_env
+src/admin/tools/fcfg_del_config
+src/admin/tools/fcfg_del_env
+src/admin/tools/fcfg_get_config
+src/admin/tools/fcfg_get_env
+src/admin/tools/fcfg_list_config
+src/admin/tools/fcfg_list_env
+src/admin/tools/fcfg_set_config
 
 # other
 *.swp

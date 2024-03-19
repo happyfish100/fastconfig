@@ -13,7 +13,7 @@ void fcfg_proto_init()
 
 int fcfg_proto_set_body_length(struct fast_task_info *task)
 {
-    task->length = buff2int(((FCFGProtoHeader *)task->data)->body_len);
+    task->send.ptr->length = buff2int(((FCFGProtoHeader *)task->send.ptr->data)->body_len);
     return 0;
 }
 

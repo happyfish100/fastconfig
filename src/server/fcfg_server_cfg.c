@@ -74,7 +74,7 @@ static int check_alloc_config_array(FCFGConfigArray **array, const int inc)
     old_array = *array;
     *array = new_array;
     return sched_add_delay_task(fcfg_server_cfg_free_config_array,
-            old_array, 10 * g_sf_global_vars.network_timeout, false);
+            old_array, 10 * SF_G_NETWORK_TIMEOUT, false);
 }
 
 static int fcfg_server_cfg_reload_config_incr(struct fcfg_mysql_context *context,
@@ -139,7 +139,7 @@ static int fcfg_server_cfg_reload_config_all(struct fcfg_mysql_context *context,
     publisher->config_array = new_array;
     if (old_array != NULL) {
         return sched_add_delay_task(fcfg_server_cfg_free_config_array,
-                old_array, 10 * g_sf_global_vars.network_timeout, false);
+                old_array, 10 * SF_G_NETWORK_TIMEOUT, false);
     } else {
         return 0;
     }

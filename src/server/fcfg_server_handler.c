@@ -19,6 +19,7 @@
 #include "fastcommon/json_parser.h"
 #include "sf/sf_util.h"
 #include "sf/sf_func.h"
+#include "sf/sf_proto.h"
 #include "sf/sf_nio.h"
 #include "sf/sf_global.h"
 #include "common/fcfg_proto.h"
@@ -95,7 +96,7 @@ static int fcfg_proto_deal_agent_join(struct fast_task_info *task,
     }
 
     memset(env, 0, sizeof(env));
-    join_req = (FCFGProtoAgentJoinReq *)(task->data + sizeof(FCFGProtoHeader));
+    join_req = (FCFGProtoAgentJoinReq *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     memcpy(env, join_req->env, sizeof(join_req->env));
     if (!fcfg_server_env_exists(env)) {
         response->error.length = sprintf(response->error.message,
@@ -122,7 +123,7 @@ static int fcfg_proto_deal_agent_join(struct fast_task_info *task,
             __LINE__, task->client_ip, env, agent_cfg_version, center_cfg_version);
 
     ((FCFGServerTaskArg *)task->arg)->msg_queue.agent_cfg_version = agent_cfg_version;
-    join_resp = (FCFGProtoAgentJoinResp *)(task->data + sizeof(FCFGProtoHeader));
+    join_resp = (FCFGProtoAgentJoinResp *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     long2buff(center_cfg_version, join_resp->center_cfg_version);
 
     ((FCFGServerTaskArg *)task->arg)->joined = true;
@@ -147,7 +148,7 @@ static int fcfg_proto_deal_admin_join(struct fast_task_info *task,
         return result;
     }
 
-    join_req = (FCFGProtoAdminJoinReq *)(task->data + sizeof(FCFGProtoHeader));
+    join_req = (FCFGProtoAdminJoinReq *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     username.len = join_req->username_len;
     secret_key.len = join_req->secret_key_len;
     username.str = join_req->username;
@@ -195,7 +196,7 @@ static int fcfg_proto_deal_add_del_env(struct fast_task_info *task,
     }
 
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
-    env = task->data + sizeof(FCFGProtoHeader);
+    env = task->send.ptr->data + sizeof(FCFGProtoHeader);
     *(env + request->body_len) = '\0';
     if (request->cmd == FCFG_PROTO_ADD_ENV_REQ) {
         result = fcfg_server_dao_add_env(mysql_context, env);
@@ -229,13 +230,13 @@ static int fcfg_proto_deal_get_env(struct fast_task_info *task,
     }
 
     mysql_context = &((FCFGServerContext *)task->thread_data->arg)->mysql_context;
-    memcpy(env, task->data + sizeof(FCFGProtoHeader), request->body_len);
+    memcpy(env, task->send.ptr->data + sizeof(FCFGProtoHeader), request->body_len);
     *(env + request->body_len) = '\0';
     if ((result=fcfg_server_dao_get_env(mysql_context, env, &entry)) != 0) {
         return result;
     }
 
-    env_resp = (FCFGProtoGetEnvResp *)(task->data + sizeof(FCFGProtoHeader));
+    env_resp = (FCFGProtoGetEnvResp *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     env_resp->env_len = entry.env.len;
     int2buff(entry.create_time, env_resp->create_time);
     int2buff(entry.update_time, env_resp->update_time);
@@ -274,14 +275,14 @@ static int fcfg_proto_deal_list_env(struct fast_task_info *task,
     for (entry=array.rows; entry<end; entry++) {
         expect_size += sizeof(FCFGProtoGetEnvResp) + entry->env.len;
     }
-    if (expect_size > task->size) {
-        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+    if (expect_size > task->send.ptr->size) {
+        if ((result=sf_set_task_send_buffer_size(task, expect_size)) != 0) {
             fcfg_server_dao_free_env_array(&array);
             return result;
         }
     }
 
-    p = task->data + sizeof(FCFGProtoHeader) + sizeof(FCFGProtoListEnvRespHeader);
+    p = task->send.ptr->data + sizeof(FCFGProtoHeader) + sizeof(FCFGProtoListEnvRespHeader);
     for (entry=array.rows; entry<end; entry++) {
         env_resp = (FCFGProtoGetEnvResp *)p;
         env_resp->env_len = entry->env.len;
@@ -292,9 +293,9 @@ static int fcfg_proto_deal_list_env(struct fast_task_info *task,
         p += sizeof(FCFGProtoGetEnvResp) + entry->env.len;
     }
 
-    resp_header = (FCFGProtoListEnvRespHeader *)(task->data + sizeof(FCFGProtoHeader));
+    resp_header = (FCFGProtoListEnvRespHeader *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     short2buff(array.count, resp_header->count);
-    response->body_len = (p - task->data) - sizeof(FCFGProtoHeader);
+    response->body_len = (p - task->send.ptr->data) - sizeof(FCFGProtoHeader);
     response->cmd = FCFG_PROTO_LIST_ENV_RESP;
     response->response_done = true;
 
@@ -329,7 +330,7 @@ static int fcfg_proto_deal_set_config(struct fast_task_info *task,
     }
 
     set_config_req = (FCFGProtoSetConfigReq *)(
-            task->data + sizeof(FCFGProtoHeader));
+            task->send.ptr->data + sizeof(FCFGProtoHeader));
 
     env_len = set_config_req->env_len;
     name_len = set_config_req->name_len;
@@ -499,7 +500,7 @@ static int fcfg_proto_deal_get_config(struct fast_task_info *task,
         return result;
     }
 
-    get_config_req = (FCFGProtoGetConfigReq *)(task->data + sizeof(FCFGProtoHeader));
+    get_config_req = (FCFGProtoGetConfigReq *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
 
     env_len = get_config_req->env_len;
     name_len = get_config_req->name_len;
@@ -545,8 +546,8 @@ static int fcfg_proto_deal_get_config(struct fast_task_info *task,
 
     expect_size = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoGetConfigResp)
         + array.rows->name.len + array.rows->value.len;
-    if (expect_size > task->size) {
-        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+    if (expect_size > task->send.ptr->size) {
+        if ((result=sf_set_task_send_buffer_size(task, expect_size)) != 0) {
             response->error.length = sprintf(response->error.message,
                     "response data is too large: %d", expect_size);
             fcfg_server_dao_free_config_array(&array);
@@ -554,7 +555,7 @@ static int fcfg_proto_deal_get_config(struct fast_task_info *task,
         }
     }
 
-    get_config_resp = (FCFGProtoGetConfigResp *)(task->data + sizeof(FCFGProtoHeader));
+    get_config_resp = (FCFGProtoGetConfigResp *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     get_config_resp->status = array.rows->status;
     get_config_resp->name_len = array.rows->name.len;
     get_config_resp->type = array.rows->type;
@@ -595,7 +596,7 @@ static int fcfg_proto_deal_del_config(struct fast_task_info *task,
         return result;
     }
 
-    del_config_req = (FCFGProtoDelConfigReq *)(task->data + sizeof(FCFGProtoHeader));
+    del_config_req = (FCFGProtoDelConfigReq *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     env_len = del_config_req->env_len;
     name_len = del_config_req->name_len;
 
@@ -668,7 +669,7 @@ static int fcfg_proto_deal_list_config(struct fast_task_info *task,
         return result;
     }
 
-    list_config_req = (FCFGProtoListConfigReq *)(task->data + sizeof(FCFGProtoHeader));
+    list_config_req = (FCFGProtoListConfigReq *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
 
     env_len = list_config_req->env_len;
     name_len = list_config_req->name_len;
@@ -721,8 +722,8 @@ static int fcfg_proto_deal_list_config(struct fast_task_info *task,
         expect_size += sizeof(FCFGProtoListConfigRespBodyPart) +
             entry->name.len + entry->value.len;
     }
-    if (expect_size > task->size) {
-        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+    if (expect_size > task->send.ptr->size) {
+        if ((result=sf_set_task_send_buffer_size(task, expect_size)) != 0) {
             response->error.length = sprintf(response->error.message,
                     "response data is too large: %d", expect_size);
             fcfg_server_dao_free_config_array(&array);
@@ -730,7 +731,7 @@ static int fcfg_proto_deal_list_config(struct fast_task_info *task,
         }
     }
 
-    p = (char *)(task->data + sizeof(FCFGProtoHeader) + 
+    p = (char *)(task->send.ptr->data + sizeof(FCFGProtoHeader) + 
             sizeof(FCFGProtoListConfigRespHeader));
     for (entry = array.rows; entry < end; entry++) {
         list_config_resp = (FCFGProtoListConfigRespBodyPart *)p;
@@ -749,7 +750,7 @@ static int fcfg_proto_deal_list_config(struct fast_task_info *task,
             entry->name.len + entry->value.len;
     }
 
-    resp_header = (FCFGProtoListConfigRespHeader *)(task->data + sizeof(FCFGProtoHeader));
+    resp_header = (FCFGProtoListConfigRespHeader *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     short2buff(array.count, resp_header->count);
 
     response->body_len = expect_size - sizeof(FCFGProtoHeader);
@@ -775,7 +776,7 @@ static int fcfg_proto_deal_push_config_resp(struct fast_task_info *task,
     }
 
     task_arg = (FCFGServerTaskArg *)task->arg;
-    push_resp = (FCFGProtoPushResp *)(task->data + sizeof(FCFGProtoHeader));
+    push_resp = (FCFGProtoPushResp *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     agent_cfg_version = buff2long(push_resp->agent_cfg_version);
     if (agent_cfg_version != task_arg->msg_queue.agent_cfg_version) {
         logError("file: "__FILE__", line: %d, client ip: %s, "
@@ -810,8 +811,8 @@ int fcfg_server_deal_task(struct fast_task_info *task, const int stage)
 
     task_arg = (FCFGServerTaskArg *)task->arg;
     task_arg->last_recv_pkg_time = g_current_time;
-    request.cmd = ((FCFGProtoHeader *)task->data)->cmd;
-    request.body_len = task->length - sizeof(FCFGProtoHeader);
+    request.cmd = ((FCFGProtoHeader *)task->send.ptr->data)->cmd;
+    request.body_len = task->send.ptr->length - sizeof(FCFGProtoHeader);
     do {
         if (request.cmd == FCFG_PROTO_AGENT_JOIN_REQ ||
                         request.cmd == FCFG_PROTO_ADMIN_JOIN_REQ)
@@ -856,7 +857,7 @@ int fcfg_server_deal_task(struct fast_task_info *task, const int stage)
                     result = 0;
                 }
 
-                task->offset = task->length = 0;
+                task->send.ptr->offset = task->send.ptr->length = 0;
                 break;
             case FCFG_PROTO_AGENT_JOIN_REQ:
                 result = fcfg_proto_deal_agent_join(task, &request, &response);
@@ -909,11 +910,11 @@ int fcfg_server_deal_task(struct fast_task_info *task, const int stage)
         return result > 0 ? -1 * result : result;
     }
 
-    proto_header = (FCFGProtoHeader *)task->data;
+    proto_header = (FCFGProtoHeader *)task->send.ptr->data;
     if (!response.response_done) {
         response.body_len = response.error.length;
         if (response.error.length > 0) {
-            memcpy(task->data + sizeof(FCFGProtoHeader),
+            memcpy(task->send.ptr->data + sizeof(FCFGProtoHeader),
                     response.error.message, response.error.length);
         }
     }
@@ -921,7 +922,7 @@ int fcfg_server_deal_task(struct fast_task_info *task, const int stage)
     proto_header->status = result >= 0 ? result : -1 * result;
     proto_header->cmd = response.cmd;
     int2buff(response.body_len, proto_header->body_len);
-    task->length = sizeof(FCFGProtoHeader) + response.body_len;
+    task->send.ptr->length = sizeof(FCFGProtoHeader) + response.body_len;
 
     r = sf_send_add_event(task);
     time_used = (int)(get_current_time_ms() - tbegin);
@@ -970,8 +971,8 @@ static int fcfg_server_send_active_test(struct fast_task_info *task)
             "client ip: %s, send_active_test",
             __LINE__, task->client_ip);
 
-    task->length = sizeof(FCFGProtoHeader);
-    proto_header = (FCFGProtoHeader *)task->data;
+    task->send.ptr->length = sizeof(FCFGProtoHeader);
+    proto_header = (FCFGProtoHeader *)task->send.ptr->data;
     int2buff(0, proto_header->body_len);
     proto_header->cmd = FCFG_PROTO_ACTIVE_TEST_REQ;
     proto_header->status = 0;
@@ -1011,7 +1012,7 @@ int fcfg_server_thread_loop(struct nio_thread_data *thread_data)
         } else {
             unexpect_waiting_type = FCFG_SERVER_TASK_WAITING_ACTIVE_TEST_RESP;
         }
-        if ((sf_client_sock_in_read_stage(event->task) && event->task->offset == 0) &&
+        if ((sf_client_sock_in_read_stage(event->task) && event->task->send.ptr->offset == 0) &&
                 (task_arg->waiting_type & unexpect_waiting_type) == 0)
         {
             if (event->type == FCFG_SERVER_EVENT_TYPE_PUSH_CONFIG) {

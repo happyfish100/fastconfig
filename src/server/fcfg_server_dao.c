@@ -107,13 +107,13 @@ int fcfg_server_dao_init(FCFGMySQLContext *context)
 
     on = false;
     mysql_options(context->mysql, MYSQL_OPT_RECONNECT, &on);
-    timeout = g_sf_global_vars.connect_timeout;
+    timeout = SF_G_CONNECT_TIMEOUT;
     mysql_options(context->mysql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
 
-    timeout = g_sf_global_vars.network_timeout;
+    timeout = SF_G_NETWORK_TIMEOUT;
     mysql_options(context->mysql, MYSQL_OPT_READ_TIMEOUT, &timeout);
 
-    timeout = g_sf_global_vars.network_timeout;
+    timeout = SF_G_NETWORK_TIMEOUT;
     mysql_options(context->mysql, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
 
     if (mysql_real_connect(context->mysql,

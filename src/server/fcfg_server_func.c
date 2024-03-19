@@ -152,9 +152,10 @@ int fcfg_server_load_config(const char *filename)
         return result;
     }
 
-    if ((result=sf_load_config("fcfg_serverd", filename, &ini_context,
-                    NULL, FCFG_SERVER_DEFAULT_INNER_PORT,
-                    FCFG_SERVER_DEFAULT_OUTER_PORT, 0)) != 0)
+    if ((result=sf_load_config("fcfg_serverd", fc_comm_type_sock,
+                    filename, &ini_context, NULL,
+                    FCFG_SERVER_DEFAULT_INNER_PORT,
+                    FCFG_SERVER_DEFAULT_OUTER_PORT, 0, 0)) != 0)
     {
         return result;
     }

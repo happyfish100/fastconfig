@@ -18,6 +18,7 @@
 #include "fastcommon/ioevent_loop.h"
 #include "sf/sf_util.h"
 #include "sf/sf_func.h"
+#include "sf/sf_proto.h"
 #include "sf/sf_nio.h"
 #include "sf/sf_global.h"
 #include "common/fcfg_proto.h"
@@ -154,13 +155,13 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     int expect_size;
     int config_count;
 
-    task->length = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoPushConfigHeader);
+    task->send.ptr->length = sizeof(FCFGProtoHeader) + sizeof(FCFGProtoPushConfigHeader);
 
     msg_queue = &((FCFGServerTaskArg *)task->arg)->msg_queue;
     publisher = ((FCFGServerTaskArg *)task->arg)->publisher;
     config = msg_queue->config_array->rows + msg_queue->offset;
     record_size = CONFIG_RECORD_SIZE(config);
-    expect_size = task->length + record_size;
+    expect_size = task->send.ptr->length + record_size;
     env = publisher != NULL ? publisher->env : "";
 
     logDebug("file: "__FILE__", line: %d, client ip: %s, env: %s, "
@@ -168,8 +169,8 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
             task->client_ip, env, msg_queue->offset,
             msg_queue->config_array->count);
 
-    if (expect_size > task->size) {
-        if ((result=free_queue_set_buffer_size(task, expect_size)) != 0) {
+    if (expect_size > task->send.ptr->size) {
+        if ((result=sf_set_task_send_buffer_size(task, expect_size)) != 0) {
             return result;
         }
     }
@@ -178,12 +179,12 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
     while (msg_queue->offset < msg_queue->config_array->count) {
         config = msg_queue->config_array->rows + msg_queue->offset;
         record_size = CONFIG_RECORD_SIZE(config);
-        expect_size = task->length + record_size;
-        if (expect_size > task->size) {
+        expect_size = task->send.ptr->length + record_size;
+        if (expect_size > task->send.ptr->size) {
             break;
         }
 
-        body_part = (FCFGProtoPushConfigBodyPart *)(task->data + task->length);
+        body_part = (FCFGProtoPushConfigBodyPart *)(task->send.ptr->data + task->send.ptr->length);
         body_part->status = config->status;
         body_part->type = config->type;
         body_part->name_len = config->name.len;
@@ -195,14 +196,14 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
         memcpy(body_part->name + config->name.len, config->value.str,
                 config->value.len);
 
-        task->length += record_size;
+        task->send.ptr->length += record_size;
         msg_queue->offset++;
     }
     msg_queue->agent_cfg_version = msg_queue->config_array->rows
         [msg_queue->offset - 1].version;
     config_count = msg_queue->offset - start_offset;
 
-    header_part = (FCFGProtoPushConfigHeader *)(task->data + sizeof(FCFGProtoHeader));
+    header_part = (FCFGProtoPushConfigHeader *)(task->send.ptr->data + sizeof(FCFGProtoHeader));
     short2buff(config_count, header_part->count);
 
     logDebug("file: "__FILE__", line: %d, client ip: %s, env: %s, "
@@ -210,10 +211,10 @@ static int fcfg_server_do_push_configs(struct fast_task_info *task)
             "agent_cfg_version: %"PRId64", task length: %d",
             __LINE__, task->client_ip, env, config_count,
             msg_queue->offset, msg_queue->config_array->count,
-            msg_queue->agent_cfg_version, task->length);
+            msg_queue->agent_cfg_version, task->send.ptr->length);
 
-    proto_header = (FCFGProtoHeader *)task->data;
-    int2buff(task->length - sizeof(FCFGProtoHeader), proto_header->body_len);
+    proto_header = (FCFGProtoHeader *)task->send.ptr->data;
+    int2buff(task->send.ptr->length - sizeof(FCFGProtoHeader), proto_header->body_len);
     proto_header->cmd = FCFG_PROTO_PUSH_CONFIG;
     proto_header->status = 0;
     return sf_send_add_event(task);

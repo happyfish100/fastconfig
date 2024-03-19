@@ -382,13 +382,12 @@ static int fcfg_agent_do_conn_config_server (ConnectionInfo **conn)
     server_index = rand() % g_agent_global_vars.server_count;
     while (index < g_agent_global_vars.server_count) {
         join_conn = g_agent_global_vars.join_conn + server_index;
-        if ((ret = conn_pool_connect_server(join_conn,
-                        g_agent_global_vars.connect_timeout)) != 0) {
-            lerr("conn_pool_connect_server fail. server index[%d] %s:%d, ret: %d, %s",
-                    server_index,
-                    join_conn->ip_addr,
-                    join_conn->port,
-                    ret, strerror(ret));
+        if ((ret = conn_pool_connect_server(join_conn, 1000 *
+                        g_agent_global_vars.connect_timeout)) != 0)
+        {
+            lerr("conn_pool_connect_server fail. server index[%d] %s:%d, "
+                    "ret: %d, %s", server_index, join_conn->ip_addr,
+                    join_conn->port, ret, strerror(ret));
             server_index = (server_index + 1) % g_agent_global_vars.server_count;
             index ++;
         } else {
@@ -415,7 +414,8 @@ int fcfg_agent_wait_config_server_loop ()
         ret = fcfg_agent_do_conn_config_server(&join_conn);
         if (ret) {
             join_conn = NULL;
-            lerr ("join server conn_pool_connect_server fail:%d, %s", ret, strerror(ret));
+            lerr ("join server conn_pool_connect_server fail:%d, %s",
+                    ret, strerror(ret));
             sleep(1);
             continue;
         }

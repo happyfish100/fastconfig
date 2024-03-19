@@ -198,17 +198,15 @@ int fcfg_do_conn_config_server (struct fcfg_context *fcfg_context)
     server_index = rand() % fcfg_context->server_count;
     while (i < fcfg_context->server_count) {
         join_conn = fcfg_context->join_conn + server_index;
-        if ((ret = conn_pool_connect_server(join_conn,
-                        fcfg_context->connect_timeout)) != 0) {
+        if ((ret = conn_pool_connect_server(join_conn, 1000 *
+                        fcfg_context->connect_timeout)) != 0)
+        {
             logError("file: "__FILE__", line: %d "
-                    "conn_pool_connect_server fail. server index[%d] %s:%d, ret:%d, %s",
-                    __LINE__,
-                    server_index,
-                    join_conn->ip_addr,
-                    join_conn->port,
-                    ret, strerror(ret));
+                    "conn_pool_connect_server fail. server index[%d] %s:%d, "
+                    "ret:%d, %s", __LINE__, server_index, join_conn->ip_addr,
+                    join_conn->port, ret, strerror(ret));
             server_index = (server_index + 1) % fcfg_context->server_count;
-            i ++;
+            i++;
         } else {
             /* connect success */
             fcfg_context->join_index = server_index;

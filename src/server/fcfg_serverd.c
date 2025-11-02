@@ -100,7 +100,6 @@ int main(int argc, char *argv[])
             fcfg_server_recv_timeout_callback, 100, sizeof(FCFGProtoHeader),
             sizeof(FCFGServerTaskArg));
     gofailif(r,"service init error");
-    sf_set_remove_from_ready_list(false);
 
     sf_accept_loop();
     if (g_schedule_flag) {
